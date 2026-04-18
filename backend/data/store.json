@@ -1,0 +1,220 @@
+{
+  "boms": {
+    "daf574b2-e464-44df-bf04-a192df59d00c": {
+      "id": "daf574b2-e464-44df-bf04-a192df59d00c",
+      "user_id": "demo",
+      "name": "Sample Electronics BOM",
+      "uploaded_at": "2026-04-18T19:29:30.625872+00:00",
+      "deleted_at": null
+    }
+  },
+  "bom_rows": {
+    "daf574b2-e464-44df-bf04-a192df59d00c": [
+      {
+        "id": "9f6687da-2e23-4842-9cda-b0356be3a300",
+        "bom_id": "daf574b2-e464-44df-bf04-a192df59d00c",
+        "sku_code": "IC-8542-001",
+        "description": "Application Processor SoC",
+        "supplier_name": "TSMC Manufacturing",
+        "supplier_country": "China",
+        "tier": 1,
+        "annual_quantity": 500000,
+        "unit_cost_usd": 45.0,
+        "hs_code": "8542.31.00",
+        "annual_spend_usd": 22500000.0,
+        "has_domestic_alt": true,
+        "alt_supplier": "GlobalFoundries (US)",
+        "lead_time_weeks": 16,
+        "critical_path": true
+      },
+      {
+        "id": "63dbe57c-c360-44d3-9f1a-9ab955b65c66",
+        "bom_id": "daf574b2-e464-44df-bf04-a192df59d00c",
+        "sku_code": "IC-8541-002",
+        "description": "Power Management IC",
+        "supplier_name": "Analog Devices China",
+        "supplier_country": "China",
+        "tier": 1,
+        "annual_quantity": 2000000,
+        "unit_cost_usd": 3.5,
+        "hs_code": "8541.10.00",
+        "annual_spend_usd": 7000000.0,
+        "has_domestic_alt": true,
+        "alt_supplier": "Texas Instruments (US)",
+        "lead_time_weeks": 8,
+        "critical_path": true
+      },
+      {
+        "id": "ffbfa33c-e024-4646-8cdc-a09e0d3f3275",
+        "bom_id": "daf574b2-e464-44df-bf04-a192df59d00c",
+        "sku_code": "PCB-8534-003",
+        "description": "Main Logic Board \u2014 12-layer PCB",
+        "supplier_name": "Shenzhen PCB Co",
+        "supplier_country": "China",
+        "tier": 1,
+        "annual_quantity": 300000,
+        "unit_cost_usd": 28.0,
+        "hs_code": "8534.00.00",
+        "annual_spend_usd": 8400000.0,
+        "has_domestic_alt": true,
+        "alt_supplier": "TTM Technologies (US)",
+        "lead_time_weeks": 12,
+        "critical_path": true
+      },
+      {
+        "id": "553f0074-5156-4234-85d6-dabff08f73d1",
+        "bom_id": "daf574b2-e464-44df-bf04-a192df59d00c",
+        "sku_code": "IC-8542-004",
+        "description": "WiFi 6E + Bluetooth 5.3 Combo Chip",
+        "supplier_name": "MediaTek China",
+        "supplier_country": "China",
+        "tier": 1,
+        "annual_quantity": 800000,
+        "unit_cost_usd": 8.75,
+        "hs_code": "8542.39.00",
+        "annual_spend_usd": 7000000.0,
+        "has_domestic_alt": true,
+        "alt_supplier": "Qualcomm (US)",
+        "lead_time_weeks": 14,
+        "critical_path": false
+      },
+      {
+        "id": "f01e3c0f-cd06-4c15-a769-82048e1f53ee",
+        "bom_id": "daf574b2-e464-44df-bf04-a192df59d00c",
+        "sku_code": "CAP-8532-005",
+        "description": "MLCC Capacitors \u2014 100nF 0402",
+        "supplier_name": "Murata China",
+        "supplier_country": "China",
+        "tier": 1,
+        "annual_quantity": 50000000,
+        "unit_cost_usd": 0.008,
+        "hs_code": "8532.24.00",
+        "annual_spend_usd": 400000.0,
+        "has_domestic_alt": true,
+        "alt_supplier": "KEMET (US)",
+        "lead_time_weeks": 6,
+        "critical_path": false
+      },
+      {
+        "id": "69ec4ecb-0977-42d7-b177-66ff13032ad5",
+        "bom_id": "daf574b2-e464-44df-bf04-a192df59d00c",
+        "sku_code": "MEM-8542-006",
+        "description": "LPDDR5 Memory Die \u2014 16GB",
+        "supplier_name": "ChangXin Memory (China)",
+        "supplier_country": "China",
+        "tier": 1,
+        "annual_quantity": 600000,
+        "unit_cost_usd": 32.0,
+        "hs_code": "8542.32.00",
+        "annual_spend_usd": 19200000.0,
+        "has_domestic_alt": true,
+        "alt_supplier": "Micron (US)",
+        "lead_time_weeks": 20,
+        "critical_path": true
+      },
+      {
+        "id": "20777b39-35ec-4ab7-9c0b-b19204ad3d52",
+        "bom_id": "daf574b2-e464-44df-bf04-a192df59d00c",
+        "sku_code": "CON-8536-007",
+        "description": "USB-C Port Controller",
+        "supplier_name": "Suzhou Connector Co",
+        "supplier_country": "China",
+        "tier": 1,
+        "annual_quantity": 1500000,
+        "unit_cost_usd": 1.2,
+        "hs_code": "8536.90.00",
+        "annual_spend_usd": 1800000.0,
+        "has_domestic_alt": true,
+        "alt_supplier": "Molex (US)",
+        "lead_time_weeks": 4,
+        "critical_path": false
+      },
+      {
+        "id": "f94db20e-ea8d-4509-9c70-f8e95a21c880",
+        "bom_id": "daf574b2-e464-44df-bf04-a192df59d00c",
+        "sku_code": "OPT-9001-008",
+        "description": "Camera Module \u2014 50MP CMOS",
+        "supplier_name": "OFilm Technology (China)",
+        "supplier_country": "China",
+        "tier": 1,
+        "annual_quantity": 400000,
+        "unit_cost_usd": 22.0,
+        "hs_code": "9001.90.00",
+        "annual_spend_usd": 8800000.0,
+        "has_domestic_alt": false,
+        "alt_supplier": null,
+        "lead_time_weeks": 24,
+        "critical_path": true
+      },
+      {
+        "id": "6942e761-f1fa-4e54-89be-690761eec3a1",
+        "bom_id": "daf574b2-e464-44df-bf04-a192df59d00c",
+        "sku_code": "BAT-8507-009",
+        "description": "Lithium Polymer Battery Pack \u2014 5000mAh",
+        "supplier_name": "CATL (China)",
+        "supplier_country": "China",
+        "tier": 1,
+        "annual_quantity": 500000,
+        "unit_cost_usd": 18.0,
+        "hs_code": "8507.60.00",
+        "annual_spend_usd": 9000000.0,
+        "has_domestic_alt": false,
+        "alt_supplier": null,
+        "lead_time_weeks": 18,
+        "critical_path": true
+      },
+      {
+        "id": "de22deb4-ba8f-4ce9-ae0d-60c4ba47dc69",
+        "bom_id": "daf574b2-e464-44df-bf04-a192df59d00c",
+        "sku_code": "DISP-8524-010",
+        "description": "OLED Display Panel \u2014 6.7 inch",
+        "supplier_name": "BOE Technology (China)",
+        "supplier_country": "China",
+        "tier": 1,
+        "annual_quantity": 500000,
+        "unit_cost_usd": 55.0,
+        "hs_code": "8524.11.00",
+        "annual_spend_usd": 27500000.0,
+        "has_domestic_alt": false,
+        "alt_supplier": null,
+        "lead_time_weeks": 22,
+        "critical_path": true
+      }
+    ]
+  },
+  "events": {
+    "USTR-2026-04-SEMI-001": {
+      "id": "USTR-2026-04-SEMI-001",
+      "event_id": "USTR-2026-04-SEMI-001",
+      "source": "manual",
+      "title": "Section 301 \u2014 Chinese Semiconductors 0% \u2192 84%",
+      "description": "84% tariff on Chinese integrated circuits and advanced semiconductors under Section 301",
+      "url": "https://ustr.gov/tariff-actions/2026/section-301-semiconductors",
+      "hs_codes": [
+        "8541",
+        "8542",
+        "8534"
+      ],
+      "jurisdictions": [
+        "CN"
+      ],
+      "rate_change_hint": "0% \u2192 84%",
+      "effective_date_hint": "2026-05-01",
+      "hs_codes_hint": [
+        "8541",
+        "8542",
+        "8534"
+      ],
+      "affected_countries_hint": [
+        "CN"
+      ],
+      "published_at": "2026-04-01T00:00:00Z",
+      "raw_excerpt": "USTR announces 84% Section 301 tariff on Chinese semiconductors effective May 1 2026",
+      "content_hash": "demo-seed-001",
+      "created_at": "2026-04-18T19:42:04.368852+00:00"
+    }
+  },
+  "recommendations": {},
+  "scenarios": {},
+  "agent_runs": []
+}

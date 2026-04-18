@@ -1,0 +1,1123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Espada — TariffShield Operator Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+@font-face {
+  font-family: 'Gatilca';
+  src: url('./fonts/GatilcaDemoRegular-q2ORq.ttf') format('truetype');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+:root {
+  --grey-000:#FFFFFF;--grey-025:#FAFAFB;--grey-050:#F4F4F6;--grey-100:#ECECEF;
+  --grey-150:#E1E1E6;--grey-200:#D2D3D9;--grey-300:#B3B5BE;--grey-400:#8A8D98;
+  --grey-500:#6A6D78;--grey-600:#4B4E57;--grey-700:#34363D;--grey-800:#22242A;
+  --grey-900:#141519;--grey-950:#09090B;
+  --orange-050:#FDEFE8;--orange-300:#EA936F;--orange-500:#D97757;
+  --orange-600:#BC5A3B;--orange-700:#8F4128;
+  --sev-critical:#D14343;--sev-high:#D97757;--sev-medium:#C49A2B;--sev-low:#4F8F5A;
+  --domain-reshore:#4C6FAE;--domain-nearshore:#B08038;--domain-dualsource:#6D7588;
+  --canvas-gradient: radial-gradient(at 20% 0%,#FDEFE8 0%,transparent 50%),
+                     radial-gradient(at 100% 30%,#E8EDF5 0%,transparent 45%),
+                     linear-gradient(180deg,#F8F8FA,#EEEEF2);
+  --glass-bg:rgba(255,255,255,0.68);--glass-thick-bg:rgba(255,255,255,0.82);
+  --glass-border-lo:rgba(20,21,25,0.06);--glass-blur:18px;--glass-blur-heavy:28px;
+  --shadow-glass-1:0 1px 0 rgba(255,255,255,.8) inset,0 -1px 0 rgba(20,21,25,.04) inset,
+                   0 1px 2px rgba(20,21,25,.04),0 8px 24px -8px rgba(20,21,25,.08);
+  --shadow-glass-2:0 1px 0 rgba(255,255,255,.9) inset,0 -1px 0 rgba(20,21,25,.05) inset,
+                   0 4px 8px rgba(20,21,25,.06),0 24px 48px -16px rgba(20,21,25,.14);
+  --specular:linear-gradient(180deg,rgba(255,255,255,.7) 0%,rgba(255,255,255,0) 40%);
+  --fg-1:var(--grey-900);--fg-2:var(--grey-600);--fg-3:var(--grey-500);--fg-4:var(--grey-400);
+  --fg-on-dark:var(--grey-050);
+  --border-1:var(--grey-150);--border-2:var(--grey-200);
+  --accent:var(--orange-500);--accent-hover:var(--orange-600);--accent-press:var(--orange-700);
+  --status-ok:var(--sev-low);--status-danger:var(--sev-critical);--status-warn:var(--sev-medium);
+  --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  --font-mono:'JetBrains Mono','SF Mono',Menlo,Consolas,monospace;
+  --font-display:'Gatilca','Inter',serif;
+  --radius-2:10px;--radius-3:14px;--radius-4:20px;--radius-full:999px;
+  --motion-fast:150ms;--motion-base:240ms;--ease-glass:cubic-bezier(0.22,1,0.36,1);
+}
+*,*::before,*::after{box-sizing:border-box;}
+html,body{margin:0;font-family:var(--font-sans);font-size:14px;line-height:20px;
+  color:var(--fg-1);background:var(--canvas-gradient);background-attachment:fixed;
+  min-height:100vh;-webkit-font-smoothing:antialiased;}
+#root{min-height:100vh;}
+table{border-collapse:collapse;width:100%;}
+button{font-family:var(--font-sans);}
+input,textarea,select{font-family:var(--font-mono);}
+.eyebrow{font-family:var(--font-mono);font-size:11px;font-weight:500;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--fg-3);}
+.h4{font-weight:600;font-size:22px;line-height:30px;margin:0;}
+.h5{font-weight:600;font-size:18px;line-height:26px;margin:0;}
+.body-sm{font-size:13px;line-height:18px;color:var(--fg-2);}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin></script>
+<script src="https://unpkg.com/lucide@0.454.0/dist/umd/lucide.min.js"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+/* ──────────────────────────────────────────────────────────────────────────
+   CONFIG
+────────────────────────────────────────────────────────────────────────── */
+const API = "http://localhost:8000/api/v1";
+
+async function api(method, path, body) {
+  const opts = { method, headers: { "Content-Type": "application/json" } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(API + path, opts);
+  if (!r.ok) {
+    const t = await r.text().catch(() => "");
+    throw new Error(`${r.status}: ${t}`);
+  }
+  return r.json();
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   DESIGN PRIMITIVES
+────────────────────────────────────────────────────────────────────────── */
+function Glass({ children, style, thick, dark, padding = 24 }) {
+  return (
+    <div style={{
+      position:'relative',
+      background: dark ? 'rgba(20,21,25,.86)' : thick ? 'var(--glass-thick-bg)' : 'var(--glass-bg)',
+      backdropFilter: thick ? 'blur(28px) saturate(160%)' : 'blur(18px) saturate(140%)',
+      WebkitBackdropFilter: thick ? 'blur(28px) saturate(160%)' : 'blur(18px) saturate(140%)',
+      border: dark ? '1px solid rgba(255,255,255,.08)' : '1px solid var(--glass-border-lo)',
+      borderRadius:'var(--radius-3)',
+      boxShadow: thick ? 'var(--shadow-glass-2)' : 'var(--shadow-glass-1)',
+      padding, overflow:'hidden',
+      color: dark ? 'var(--fg-on-dark)' : 'var(--fg-1)',
+      ...style,
+    }}>
+      {!dark && <div style={{position:'absolute',inset:0,background:'var(--specular)',pointerEvents:'none',borderRadius:'inherit'}}/>}
+      <div style={{position:'relative'}}>{children}</div>
+    </div>
+  );
+}
+
+function Chip({ children, bg, fg }) {
+  return (
+    <span style={{fontFamily:'var(--font-mono)',fontSize:11,fontWeight:500,letterSpacing:'.06em',
+      padding:'3px 10px',borderRadius:999,background:bg,color:fg,
+      display:'inline-flex',alignItems:'center',gap:6,whiteSpace:'nowrap'}}>
+      {children}
+    </span>
+  );
+}
+
+const SEV = {
+  CRITICAL:{bg:'rgba(209,67,67,.10)',fg:'#D14343'},
+  HIGH:{bg:'rgba(217,119,87,.14)',fg:'#BC5A3B'},
+  MEDIUM:{bg:'rgba(196,154,43,.14)',fg:'#8F6F1A'},
+  LOW:{bg:'rgba(79,143,90,.14)',fg:'#35683F'},
+};
+
+function sevFromScore(score) {
+  if (score >= 0.75) return 'CRITICAL';
+  if (score >= 0.5) return 'HIGH';
+  if (score >= 0.25) return 'MEDIUM';
+  return 'LOW';
+}
+
+function Btn({ children, onClick, variant='primary', disabled=false, small=false, style={} }) {
+  const base = {
+    fontFamily:'var(--font-sans)',fontWeight:500,border:'none',cursor:disabled?'not-allowed':'pointer',
+    borderRadius:'var(--radius-2)',transition:'all var(--motion-fast)',
+    fontSize: small ? 12 : 14, padding: small ? '6px 12px' : '11px 18px',
+    ...style,
+  };
+  const variants = {
+    primary:{ background:disabled?'rgba(20,21,25,.08)':'var(--accent)', color:disabled?'var(--fg-3)':'#fff',
+      boxShadow:disabled?'none':'0 1px 0 rgba(255,255,255,.3) inset,0 6px 20px -8px rgba(217,119,87,.5)'},
+    danger:{ background:'transparent',color:'var(--status-danger)',
+      border:'1px solid rgba(209,67,67,.4)'},
+    ghost:{ background:'rgba(255,255,255,.6)',color:'var(--fg-2)',
+      border:'1px solid var(--glass-border-lo)'},
+  };
+  return <button onClick={onClick} disabled={disabled} style={{...base,...variants[variant]}}>{children}</button>;
+}
+
+function Input({ value, onChange, placeholder, textarea=false, rows=4 }) {
+  const s = {
+    width:'100%', padding:'10px 14px', borderRadius:'var(--radius-2)',
+    border:'1px solid var(--border-2)', background:'rgba(255,255,255,.7)',
+    fontSize:13, color:'var(--fg-1)', outline:'none',
+    fontFamily:'var(--font-sans)', resize:textarea?'vertical':'none',
+  };
+  if (textarea) return <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows} style={s}/>;
+  return <input value={value} onChange={onChange} placeholder={placeholder} style={s}/>;
+}
+
+function LIcon({ name, size=16, color, style }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!ref.current || !window.lucide) return;
+    ref.current.innerHTML='';
+    const el = document.createElement('i');
+    el.setAttribute('data-lucide', name);
+    ref.current.appendChild(el);
+    lucide.createIcons({ attrs:{ 'stroke-width':1.5 }});
+  }, [name]);
+  return <span ref={ref} style={{display:'inline-flex',width:size,height:size,color,...style}}/>;
+}
+
+function Badge({ label, ok }) {
+  return (
+    <div style={{display:'flex',alignItems:'center',gap:8,fontSize:13}}>
+      <span style={{width:16,height:16,display:'inline-flex',alignItems:'center',justifyContent:'center',
+        borderRadius:999,flexShrink:0,
+        background:ok?'var(--status-ok)':'transparent',
+        border:ok?'none':'1px dashed var(--border-2)',
+        color:'#fff',fontSize:10,transition:'all var(--motion-base)'}}>
+        {ok?'✓':''}
+      </span>
+      <span style={{color:ok?'var(--fg-1)':'var(--fg-3)'}}>{label}</span>
+    </div>
+  );
+}
+
+function StatusChip({ status }) {
+  const map = {
+    running:    {bg:'rgba(79,143,90,.1)', fg:'#35683F',   label:'RUNNING'},
+    awaiting_approval:{bg:'rgba(217,119,87,.14)',fg:'#BC5A3B',label:'AWAITING APPROVAL'},
+    approved:   {bg:'rgba(79,143,90,.14)',fg:'#35683F',   label:'APPROVED'},
+    edited:     {bg:'rgba(196,154,43,.12)',fg:'#8F6F1A',  label:'EDITED'},
+    rejected:   {bg:'rgba(209,67,67,.10)',fg:'#D14343',   label:'REJECTED'},
+    error:      {bg:'rgba(209,67,67,.10)',fg:'#D14343',   label:'ERROR'},
+  };
+  const s = map[status] || {bg:'var(--grey-100)',fg:'var(--fg-3)',label:status};
+  return <Chip bg={s.bg} fg={s.fg}>{s.label}</Chip>;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   SIDEBAR + TOPBAR
+────────────────────────────────────────────────────────────────────────── */
+function Sidebar({ page, setPage }) {
+  const items = [
+    ['radar','Dashboard','dashboard'],
+    ['upload','Upload BOM','upload'],
+    ['zap','Events','events'],
+    ['git-branch','Scenarios','recommendations'],
+    ['shield-check','HITL Gate','hitl'],
+    ['file-clock','Audit Log','audit'],
+  ];
+  return (
+    <aside style={{width:220,padding:20,boxSizing:'border-box',flexShrink:0,
+      display:'flex',flexDirection:'column',gap:4,
+      borderRight:'1px solid var(--glass-border-lo)',
+      background:'rgba(255,255,255,.4)',
+      backdropFilter:'blur(18px) saturate(140%)',
+      WebkitBackdropFilter:'blur(18px) saturate(140%)',
+      position:'sticky',top:0,height:'100vh',overflowY:'auto'}}>
+      <div style={{display:'flex',alignItems:'center',gap:10,padding:'4px 8px 20px'}}>
+        <img src="./assets/espada-mark.svg" width="28" height="28" alt=""/>
+        <span style={{fontWeight:600,fontSize:18,letterSpacing:'-.02em'}}>espada</span>
+      </div>
+      {items.map(([icon,label,key]) => {
+        const active = page===key;
+        return (
+          <button key={key} onClick={()=>setPage(key)} style={{
+            display:'flex',alignItems:'center',gap:10,padding:'9px 12px',
+            borderRadius:10,cursor:'pointer',border:'none',textAlign:'left',width:'100%',
+            background:active?'rgba(255,255,255,.85)':'transparent',
+            boxShadow:active?'var(--shadow-glass-1)':'none',
+            color:active?'var(--fg-1)':'var(--fg-2)',
+            fontSize:13,fontWeight:active?500:400,
+            transition:'all var(--motion-fast)'}}>
+            <LIcon name={icon} size={16}/>
+            <span>{label}</span>
+          </button>
+        );
+      })}
+      <div style={{flex:1}}/>
+      <div style={{padding:12,borderRadius:10,background:'rgba(255,255,255,.55)',border:'1px solid var(--glass-border-lo)',fontSize:12}}>
+        <div className="eyebrow" style={{marginBottom:4}}>Operator</div>
+        <div style={{fontWeight:500}}>M. Vance</div>
+        <div style={{color:'var(--fg-3)',fontFamily:'var(--font-mono)',fontSize:11}}>Trade Ops · tier 2</div>
+      </div>
+    </aside>
+  );
+}
+
+function TopBar({ apiOk }) {
+  return (
+    <div style={{display:'flex',alignItems:'center',gap:16,padding:'14px 32px',
+      borderBottom:'1px solid var(--glass-border-lo)',
+      background:'rgba(255,255,255,.45)',
+      backdropFilter:'blur(18px) saturate(140%)',
+      WebkitBackdropFilter:'blur(18px) saturate(140%)',
+      position:'sticky',top:0,zIndex:10}}>
+      <div style={{display:'flex',alignItems:'center',gap:8,padding:'6px 12px',borderRadius:999,
+        background:apiOk?'rgba(79,143,90,.14)':'rgba(209,67,67,.1)',
+        color:apiOk?'#35683F':'#D14343',
+        fontFamily:'var(--font-mono)',fontSize:11,fontWeight:500,letterSpacing:'.06em'}}>
+        <span style={{width:6,height:6,borderRadius:999,
+          background:apiOk?'#4F8F5A':'#D14343',
+          boxShadow:apiOk?'0 0 8px #4F8F5A':'none',display:'inline-block'}}/>
+        {apiOk ? 'API LIVE' : 'API OFFLINE'}
+      </div>
+      <div style={{flex:1}}/>
+      <div style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--fg-3)'}}>
+        TariffShield v1.0 · {new Date().toLocaleDateString()}
+      </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   DASHBOARD PAGE
+────────────────────────────────────────────────────────────────────────── */
+function DashboardPage({ setPage }) {
+  const [events, setEvents] = useState([]);
+  const [recs, setRecs]     = useState([]);
+  const [seeded, setSeeded] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+
+  useEffect(() => {
+    Promise.all([
+      api('GET','/events').then(d=>setEvents(d.events||[])).catch(()=>{}),
+      api('GET','/recommendations').then(setRecs).catch(()=>{}),
+    ]);
+  }, [seeded]);
+
+  async function seedDemo() {
+    setSeeding(true);
+    try { await api('POST','/demo/seed'); setSeeded(s=>!s); }
+    catch(e) { alert(e.message); }
+    finally { setSeeding(false); }
+  }
+
+  const pendingHitl = recs.filter(r=>r.status==='awaiting_approval').length;
+  const criticalEvents = events.filter(e=>(e.hs_codes||[]).length>0).length;
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:20}}>
+      {/* KPI Row */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16}}>
+        {[
+          ['Active Events', criticalEvents, 'zap', '#D14343'],
+          ['BOMs Uploaded', 0, 'package', '#4C6FAE'],
+          ['Pending HITL', pendingHitl, 'shield-check', '#D97757'],
+          ['Recommendations', recs.length, 'git-branch', '#4F8F5A'],
+        ].map(([label, val, icon, color]) => (
+          <Glass key={label} padding={20}>
+            <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between'}}>
+              <div>
+                <div className="eyebrow">{label}</div>
+                <div style={{fontFamily:'var(--font-mono)',fontSize:36,fontWeight:500,
+                  letterSpacing:'-.02em',marginTop:8,fontVariantNumeric:'tabular-nums'}}>{val}</div>
+              </div>
+              <div style={{width:40,height:40,borderRadius:10,background:`${color}18`,
+                display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <LIcon name={icon} size={20} color={color}/>
+              </div>
+            </div>
+          </Glass>
+        ))}
+      </div>
+
+      {/* Quick actions */}
+      <Glass padding={24}>
+        <div className="h5" style={{marginBottom:16}}>Quick actions</div>
+        <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
+          <Btn onClick={()=>setPage('upload')}>Upload BOM CSV</Btn>
+          <Btn variant="ghost" onClick={seedDemo} disabled={seeding}>
+            {seeding ? 'Seeding…' : 'Load demo data'}
+          </Btn>
+          <Btn variant="ghost" onClick={()=>setPage('events')}>View events</Btn>
+          {pendingHitl > 0 &&
+            <Btn variant="danger" onClick={()=>setPage('hitl')}>
+              {pendingHitl} awaiting HITL approval
+            </Btn>}
+        </div>
+      </Glass>
+
+      {/* Recent events */}
+      {events.length > 0 && (
+        <Glass padding={0}>
+          <div style={{padding:'18px 22px',borderBottom:'1px solid var(--border-1)'}}>
+            <div className="eyebrow">Recent tariff events</div>
+          </div>
+          {events.slice(0,5).map(ev => (
+            <div key={ev.id} style={{padding:'14px 22px',borderBottom:'1px solid var(--border-1)',
+              display:'flex',alignItems:'center',gap:14}}>
+              <LIcon name="zap" size={16} color="var(--sev-critical)"/>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:500,fontSize:13}}>{ev.title}</div>
+                <div style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--fg-3)',marginTop:2}}>
+                  HS: {(ev.hs_codes||[]).join(', ')||'—'} · Countries: {(ev.jurisdictions||[]).join(', ')||'—'}
+                </div>
+              </div>
+              <Btn small variant="ghost" onClick={()=>setPage('events')}>Analyze</Btn>
+            </div>
+          ))}
+        </Glass>
+      )}
+
+      {events.length === 0 && (
+        <Glass style={{textAlign:'center',padding:60}}>
+          <LIcon name="radar" size={40} color="var(--fg-4)" style={{margin:'0 auto 16px'}}/>
+          <div className="h5" style={{marginBottom:8}}>No events yet</div>
+          <div className="body-sm" style={{marginBottom:20}}>Load demo data or poll Federal Register to get started.</div>
+          <Btn onClick={seedDemo} disabled={seeding}>{seeding?'Seeding…':'Load demo data'}</Btn>
+        </Glass>
+      )}
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   UPLOAD BOM PAGE
+────────────────────────────────────────────────────────────────────────── */
+function UploadPage() {
+  const [dragging, setDragging] = useState(false);
+  const [result,   setResult]   = useState(null);
+  const [error,    setError]    = useState(null);
+  const [loading,  setLoading]  = useState(false);
+  const fileRef = useRef(null);
+
+  async function upload(file) {
+    setLoading(true); setError(null); setResult(null);
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const r = await fetch(`${API}/boms`, { method:'POST', body:fd });
+      if (!r.ok) throw new Error(await r.text());
+      setResult(await r.json());
+    } catch(e) { setError(e.message); }
+    finally { setLoading(false); }
+  }
+
+  function onDrop(e) {
+    e.preventDefault(); setDragging(false);
+    const f = e.dataTransfer.files[0];
+    if (f) upload(f);
+  }
+
+  return (
+    <div style={{maxWidth:720}}>
+      <div className="h4" style={{marginBottom:6}}>Upload Bill of Materials</div>
+      <div className="body-sm" style={{marginBottom:24}}>
+        Upload a CSV or JSON file. Required columns: <code>sku_code</code>, <code>description</code>,
+        <code>supplier_name</code>, <code>supplier_country</code>, <code>unit_cost_usd</code>.
+      </div>
+
+      <div onDragOver={e=>{e.preventDefault();setDragging(true);}}
+           onDragLeave={()=>setDragging(false)}
+           onDrop={onDrop}
+           onClick={()=>fileRef.current?.click()}
+           style={{border:`2px dashed ${dragging?'var(--accent)':'var(--border-2)'}`,
+             borderRadius:'var(--radius-3)',padding:48,textAlign:'center',cursor:'pointer',
+             background:dragging?'rgba(217,119,87,.05)':'rgba(255,255,255,.4)',
+             transition:'all var(--motion-fast)'}}>
+        <LIcon name="upload-cloud" size={36} color="var(--fg-3)" style={{margin:'0 auto 12px'}}/>
+        <div style={{fontWeight:500,marginBottom:6}}>Drop CSV or JSON here</div>
+        <div className="body-sm">or click to browse</div>
+        <input ref={fileRef} type="file" accept=".csv,.json" style={{display:'none'}}
+               onChange={e=>e.target.files[0]&&upload(e.target.files[0])}/>
+      </div>
+
+      {loading && <div style={{textAlign:'center',padding:24,color:'var(--fg-3)',fontFamily:'var(--font-mono)',fontSize:12}}>Parsing BOM…</div>}
+      {error && <div style={{marginTop:16,padding:14,borderRadius:'var(--radius-2)',background:'rgba(209,67,67,.08)',border:'1px solid rgba(209,67,67,.3)',color:'#D14343',fontSize:13}}>{error}</div>}
+
+      {result && (
+        <Glass style={{marginTop:20}} padding={20}>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
+            <LIcon name="check-circle-2" size={18} color="var(--status-ok)"/>
+            <div style={{fontWeight:600}}>BOM uploaded — {result.row_count} rows</div>
+          </div>
+          <div style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--fg-3)',marginBottom:12}}>
+            BOM ID: {result.bom?.id}
+          </div>
+          {result.validation_errors?.length > 0 && (
+            <div style={{padding:12,borderRadius:'var(--radius-2)',background:'rgba(196,154,43,.1)',
+              border:'1px solid rgba(196,154,43,.3)',fontSize:12,color:'#8F6F1A',marginBottom:12}}>
+              {result.validation_errors.length} validation warnings
+            </div>
+          )}
+          <div style={{overflowX:'auto'}}>
+            <table>
+              <thead>
+                <tr style={{borderBottom:'1px solid var(--border-1)'}}>
+                  {['SKU','Description','Supplier','Country','Unit Cost'].map(h=>(
+                    <th key={h} style={{padding:'8px 12px',textAlign:'left',
+                      fontFamily:'var(--font-mono)',fontSize:10,letterSpacing:'.08em',
+                      textTransform:'uppercase',color:'var(--fg-3)',fontWeight:500}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(result.bom?.rows||[]).slice(0,8).map((r,i)=>(
+                  <tr key={i} style={{borderBottom:'1px solid var(--border-1)'}}>
+                    <td style={{padding:'10px 12px',fontFamily:'var(--font-mono)',fontSize:12}}>{r.sku_code}</td>
+                    <td style={{padding:'10px 12px',fontSize:13}}>{r.description}</td>
+                    <td style={{padding:'10px 12px',fontSize:13,color:'var(--fg-2)'}}>{r.supplier_name}</td>
+                    <td style={{padding:'10px 12px',fontFamily:'var(--font-mono)',fontSize:12,color:'var(--fg-2)'}}>{r.supplier_country}</td>
+                    <td style={{padding:'10px 12px',fontFamily:'var(--font-mono)',fontSize:12}}>${r.unit_cost_usd?.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Glass>
+      )}
+
+      <Glass style={{marginTop:20}} padding={20} dark>
+        <div style={{color:'#EA936F',fontFamily:'var(--font-mono)',fontSize:11,letterSpacing:'.08em',
+          textTransform:'uppercase',marginBottom:10}}>Sample CSV format</div>
+        <pre style={{fontFamily:'var(--font-mono)',fontSize:11,lineHeight:'18px',color:'#E4E4E8',margin:0,overflow:'auto'}}>
+{`sku_code,description,supplier_name,supplier_country,tier,annual_quantity,unit_cost_usd,hs_code
+IC-001,Application Processor SoC,TSMC Manufacturing,China,1,500000,45.00,8542.31.00
+MEM-002,LPDDR5 Memory 16GB,ChangXin Memory,China,1,2000000,8.50,8542.32.00
+PCB-003,Main Logic Board 12-layer,Shenzhen PCB Co,China,1,300000,28.00,8534.00.00`}
+        </pre>
+      </Glass>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   EVENTS PAGE
+────────────────────────────────────────────────────────────────────────── */
+function EventsPage({ setPage, setTargetRec }) {
+  const [events, setEvents] = useState([]);
+  const [boms,   setBoms]   = useState([]);
+  const [analyzing, setAnalyzing] = useState({});
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({
+    title:'', description:'', hs_codes_hint:'', affected_countries_hint:'',
+    rate_change_hint:'', effective_date_hint:'',
+  });
+
+  useEffect(() => {
+    api('GET','/events').then(d=>setEvents(d.events||[])).catch(()=>{});
+    api('GET','/boms').then(setBoms).catch(()=>{});
+  }, []);
+
+  async function analyze(event_id, bom_id) {
+    setAnalyzing(a=>({...a,[event_id]:true}));
+    try {
+      const res = await api('POST',`/events/${event_id}/analyze`,{bom_id});
+      setTargetRec(res.recommendation_id);
+      setPage('recommendations');
+    } catch(e) { alert(e.message); }
+    finally { setAnalyzing(a=>({...a,[event_id]:false})); }
+  }
+
+  async function createEvent() {
+    if (!form.title) return alert('Title required');
+    setCreating(true);
+    try {
+      const ev = await api('POST','/events',{
+        title: form.title,
+        description: form.description,
+        hs_codes_hint: form.hs_codes_hint.split(',').map(s=>s.trim()).filter(Boolean),
+        affected_countries_hint: form.affected_countries_hint.split(',').map(s=>s.trim()).filter(Boolean),
+        rate_change_hint: form.rate_change_hint,
+        effective_date_hint: form.effective_date_hint,
+      });
+      setEvents(e=>[ev,...e]);
+      setForm({title:'',description:'',hs_codes_hint:'',affected_countries_hint:'',rate_change_hint:'',effective_date_hint:''});
+    } catch(e) { alert(e.message); }
+    finally { setCreating(false); }
+  }
+
+  async function pollFR() {
+    try {
+      const r = await api('POST','/internal/poll-signals');
+      alert(`Polled Federal Register: ${r.events_found} new events`);
+      api('GET','/events').then(d=>setEvents(d.events||[])).catch(()=>{});
+    } catch(e) { alert(e.message); }
+  }
+
+  const activeBomId = boms[0]?.id;
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:20}}>
+      {/* Submit manual event */}
+      <Glass thick padding={24}>
+        <div className="h5" style={{marginBottom:16}}>Submit tariff event</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          <div style={{gridColumn:'1/-1'}}>
+            <div className="eyebrow" style={{marginBottom:6}}>Title *</div>
+            <Input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="e.g. Section 301 — Chinese semiconductors 0% → 84%"/>
+          </div>
+          <div style={{gridColumn:'1/-1'}}>
+            <div className="eyebrow" style={{marginBottom:6}}>Description</div>
+            <Input value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} placeholder="Brief description of the tariff event"/>
+          </div>
+          <div>
+            <div className="eyebrow" style={{marginBottom:6}}>HS Codes (comma-separated)</div>
+            <Input value={form.hs_codes_hint} onChange={e=>setForm(f=>({...f,hs_codes_hint:e.target.value}))} placeholder="8541, 8542, 8534"/>
+          </div>
+          <div>
+            <div className="eyebrow" style={{marginBottom:6}}>Affected Countries (ISO)</div>
+            <Input value={form.affected_countries_hint} onChange={e=>setForm(f=>({...f,affected_countries_hint:e.target.value}))} placeholder="CN, TW"/>
+          </div>
+          <div>
+            <div className="eyebrow" style={{marginBottom:6}}>Rate Change</div>
+            <Input value={form.rate_change_hint} onChange={e=>setForm(f=>({...f,rate_change_hint:e.target.value}))} placeholder="0% → 84%"/>
+          </div>
+          <div>
+            <div className="eyebrow" style={{marginBottom:6}}>Effective Date</div>
+            <Input value={form.effective_date_hint} onChange={e=>setForm(f=>({...f,effective_date_hint:e.target.value}))} placeholder="2026-05-01"/>
+          </div>
+        </div>
+        <div style={{display:'flex',gap:10,marginTop:16}}>
+          <Btn onClick={createEvent} disabled={creating}>{creating?'Creating…':'Create event'}</Btn>
+          <Btn variant="ghost" onClick={pollFR}>Poll Federal Register</Btn>
+        </div>
+      </Glass>
+
+      {/* Events list */}
+      {events.length === 0
+        ? <Glass style={{textAlign:'center',padding:40}}><div className="body-sm">No events yet. Create one above or poll Federal Register.</div></Glass>
+        : events.map(ev => (
+          <Glass key={ev.id} padding={0}>
+            <div style={{padding:'18px 22px',display:'flex',alignItems:'flex-start',gap:16,flexWrap:'wrap'}}>
+              <div style={{flex:1,minWidth:280}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8,flexWrap:'wrap'}}>
+                  <Chip bg='rgba(209,67,67,.1)' fg='#D14343'>TARIFF EVENT</Chip>
+                  <div className="eyebrow">{ev.source||'manual'}</div>
+                </div>
+                <div style={{fontWeight:600,fontSize:16,marginBottom:6}}>{ev.title}</div>
+                <div style={{fontSize:13,color:'var(--fg-2)',marginBottom:8}}>{ev.description||ev.raw_excerpt}</div>
+                <div style={{display:'flex',gap:16,flexWrap:'wrap'}}>
+                  {(ev.hs_codes||[]).length>0 && (
+                    <div style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--fg-3)'}}>
+                      HS: {ev.hs_codes.join(', ')}
+                    </div>
+                  )}
+                  {(ev.jurisdictions||[]).length>0 && (
+                    <div style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--fg-3)'}}>
+                      Countries: {ev.jurisdictions.join(', ')}
+                    </div>
+                  )}
+                  {ev.rate_change_hint && (
+                    <div style={{fontFamily:'var(--font-mono)',fontSize:11,color:'#D14343'}}>
+                      Rate: {ev.rate_change_hint}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'flex-end'}}>
+                {activeBomId
+                  ? <Btn onClick={()=>analyze(ev.id,activeBomId)} disabled={analyzing[ev.id]}>
+                      {analyzing[ev.id]?'Starting…':'Run analysis →'}
+                    </Btn>
+                  : <div style={{fontSize:12,color:'var(--fg-3)'}}>Upload a BOM first</div>}
+                <div style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--fg-4)'}}>{ev.id?.slice(0,20)}</div>
+              </div>
+            </div>
+          </Glass>
+        ))
+      }
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   RECOMMENDATIONS (PIPELINE RESULTS) PAGE
+────────────────────────────────────────────────────────────────────────── */
+function RecommendationsPage({ targetRec, setTargetRec, setPage }) {
+  const [recs, setRecs]   = useState([]);
+  const [active, setActive] = useState(targetRec);
+
+  useEffect(() => {
+    api('GET','/recommendations').then(list=>{
+      setRecs(list);
+      if (!active && list.length) setActive(list[0].id);
+    }).catch(()=>{});
+  }, []);
+
+  useEffect(() => { if (targetRec) { setActive(targetRec); setTargetRec(null); } }, [targetRec]);
+
+  function refresh() {
+    api('GET','/recommendations').then(setRecs).catch(()=>{});
+  }
+
+  const rec = recs.find(r=>r.id===active);
+
+  return (
+    <div style={{display:'grid',gridTemplateColumns:'260px 1fr',gap:20,alignItems:'flex-start'}}>
+      {/* Left rail */}
+      <div style={{display:'flex',flexDirection:'column',gap:8}}>
+        <div className="eyebrow" style={{marginBottom:4}}>Runs</div>
+        {recs.length===0 && <div className="body-sm">No recommendations yet.</div>}
+        {recs.map(r=>(
+          <div key={r.id} onClick={()=>setActive(r.id)} style={{
+            padding:'12px 14px',borderRadius:'var(--radius-2)',cursor:'pointer',
+            background:r.id===active?'rgba(255,255,255,.92)':'rgba(255,255,255,.5)',
+            border:`1px solid ${r.id===active?'var(--accent)':'var(--glass-border-lo)'}`,
+            boxShadow:r.id===active?'var(--shadow-glass-1)':'none',
+            transition:'all var(--motion-fast)'}}>
+            <StatusChip status={r.status}/>
+            <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--fg-3)',marginTop:6}}>
+              {r.id?.slice(0,16)}…
+            </div>
+            <div style={{fontSize:12,color:'var(--fg-2)',marginTop:2}}>
+              {new Date(r.created_at).toLocaleTimeString()}
+            </div>
+          </div>
+        ))}
+        <Btn variant="ghost" small onClick={refresh}>Refresh</Btn>
+      </div>
+
+      {/* Right: detail */}
+      {rec
+        ? <RecDetail rec={rec} onUpdate={refresh}/>
+        : <Glass style={{textAlign:'center',padding:60}}>
+            <div className="body-sm">Select a run from the left, or go to Events to trigger one.</div>
+            <div style={{marginTop:16}}><Btn variant="ghost" onClick={()=>setPage('events')}>Go to Events</Btn></div>
+          </Glass>
+      }
+    </div>
+  );
+}
+
+function RecDetail({ rec, onUpdate }) {
+  const [polling, setPolling] = useState(rec.status==='running');
+  const [current, setCurrent] = useState(rec);
+  const [progress, setProgress] = useState([]);
+
+  // SSE streaming while running
+  useEffect(() => {
+    if (current.status !== 'running') return;
+    const es = new EventSource(`${API}/recommendations/${rec.id}/stream`);
+    es.onmessage = e => {
+      try {
+        const d = JSON.parse(e.data);
+        if (d.stage) setProgress(p=>[...p,d]);
+        if (d.stage==='done') { setCurrent(d.rec||current); es.close(); setPolling(false); onUpdate(); }
+      } catch(_) {}
+    };
+    es.onerror = ()=>{ es.close(); setPolling(false); };
+    return ()=>es.close();
+  }, [current.status]);
+
+  // Fallback poll if SSE not streaming
+  useEffect(() => {
+    if (!polling) return;
+    const t = setInterval(async()=>{
+      try {
+        const fresh = await api('GET',`/recommendations/${rec.id}`);
+        setCurrent(fresh);
+        if (fresh.status!=='running') { setPolling(false); onUpdate(); clearInterval(t); }
+      } catch(_) {}
+    }, 2000);
+    return ()=>clearInterval(t);
+  }, [polling]);
+
+  async function approve() {
+    try { const r = await api('POST',`/recommendations/${rec.id}/approve`); setCurrent(r); onUpdate(); }
+    catch(e) { alert(e.message); }
+  }
+  async function reject() {
+    try { const r = await api('POST',`/recommendations/${rec.id}/reject`); setCurrent(r); onUpdate(); }
+    catch(e) { alert(e.message); }
+  }
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:20}}>
+      {/* Status header */}
+      <Glass thick padding={24}>
+        <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12,flexWrap:'wrap'}}>
+          <StatusChip status={current.status}/>
+          <div className="eyebrow">{rec.id?.slice(0,24)}</div>
+          {current.status==='running' && (
+            <div style={{display:'flex',alignItems:'center',gap:6,fontFamily:'var(--font-mono)',fontSize:11,color:'var(--fg-3)'}}>
+              <span style={{width:6,height:6,borderRadius:999,background:'#4F8F5A',
+                boxShadow:'0 0 8px #4F8F5A',display:'inline-block',
+                animation:'pulse 1.5s infinite'}}/>
+              Pipeline running…
+            </div>
+          )}
+        </div>
+        {current.enriched_event && (
+          <div>
+            <div style={{fontFamily:'var(--font-display)',fontSize:28,letterSpacing:'-.02em',marginBottom:6}}>
+              {current.enriched_event.title||current.enriched_event.event_id}
+            </div>
+            <div style={{fontSize:13,color:'var(--fg-2)'}}>
+              Confidence: <span style={{fontFamily:'var(--font-mono)'}}>{current.enriched_event.confidence_score||'—'}</span>
+              {' · '}
+              HS codes: <span style={{fontFamily:'var(--font-mono)'}}>{(current.enriched_event.hs_codes||[]).join(', ')||'—'}</span>
+            </div>
+          </div>
+        )}
+      </Glass>
+
+      {/* Pipeline progress log */}
+      {(progress.length>0 || current.status==='running') && (
+        <Glass dark padding={20}>
+          <div style={{color:'#EA936F',fontFamily:'var(--font-mono)',fontSize:11,
+            letterSpacing:'.08em',textTransform:'uppercase',marginBottom:10}}>
+            Agent pipeline · live
+          </div>
+          {progress.map((p,i)=>(
+            <div key={i} style={{fontFamily:'var(--font-mono)',fontSize:12,lineHeight:'22px',color:'#E4E4E8'}}>
+              <span style={{color:'#555860'}}>{new Date(p.ts).toLocaleTimeString()}</span>
+              {' '}
+              <span style={{color: p.status==='error'?'#D14343': p.status==='awaiting_approval'?'#EA936F':'#8A8D98'}}>
+                [{p.stage}]
+              </span>
+              {' '}{p.detail||p.status}
+            </div>
+          ))}
+          {current.status==='running' && <div style={{fontFamily:'var(--font-mono)',fontSize:12,color:'#555860',marginTop:4}}>…</div>}
+        </Glass>
+      )}
+
+      {/* BOM analysis summary */}
+      {current.bom_analysis && <BomSummary analysis={current.bom_analysis}/>}
+
+      {/* Ranked Scenarios */}
+      {(current.ranked_scenarios||[]).length>0 && (
+        <div>
+          <div className="eyebrow" style={{marginBottom:12}}>Ranked scenarios · 3 modeled in parallel</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16}}>
+            {current.ranked_scenarios.map((s,i)=><ScenarioCard key={i} scenario={s} rank={i+1}/>)}
+          </div>
+        </div>
+      )}
+
+      {/* Draft email + HITL */}
+      {current.status==='awaiting_approval' && (
+        <HitlGate rec={current} onApprove={approve} onReject={reject}/>
+      )}
+
+      {/* Outcome */}
+      {current.status==='approved' && (
+        <Glass padding={20}>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+            <LIcon name="check-circle-2" size={20} color="var(--status-ok)"/>
+            <div style={{fontWeight:600}}>Approved — supplier emails authorized</div>
+          </div>
+          {current.draft_email && <EmailDisplay email={current.draft_email}/>}
+        </Glass>
+      )}
+      {current.status==='rejected' && (
+        <Glass padding={20}>
+          <div style={{display:'flex',alignItems:'center',gap:10,color:'var(--status-danger)'}}>
+            <LIcon name="x-circle" size={20} color="var(--status-danger)"/>
+            <div style={{fontWeight:600}}>Rejected — no action taken. Decision logged.</div>
+          </div>
+        </Glass>
+      )}
+    </div>
+  );
+}
+
+function BomSummary({ analysis }) {
+  const skus = analysis.sku_impacts||analysis.affected_skus||[];
+  const total = analysis.total_annual_tariff_impact_usd||0;
+  if (!skus.length) return null;
+  return (
+    <Glass padding={0}>
+      <div style={{padding:'14px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:10}}>
+        <div>
+          <div className="eyebrow">BOM exposure</div>
+          <div className="h5" style={{marginTop:4}}>{skus.length} affected SKUs</div>
+        </div>
+        <div style={{textAlign:'right'}}>
+          <div className="eyebrow">Annual tariff impact</div>
+          <div style={{fontFamily:'var(--font-mono)',fontSize:32,fontWeight:500,fontVariantNumeric:'tabular-nums',letterSpacing:'-.02em'}}>
+            ${total.toLocaleString()}
+          </div>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr style={{borderTop:'1px solid var(--border-1)',borderBottom:'1px solid var(--border-1)'}}>
+            {['SKU','Description','Impact/yr','Severity'].map((h,i)=>(
+              <th key={h} style={{padding:'9px 20px',textAlign:i===2?'right':'left',
+                fontFamily:'var(--font-mono)',fontSize:10,letterSpacing:'.08em',
+                textTransform:'uppercase',color:'var(--fg-3)',fontWeight:500}}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {skus.slice(0,8).map((r,i)=>{
+            const sev = r.severity||sevFromScore(r.exposure_score||0);
+            const s = SEV[sev]||SEV.LOW;
+            return (
+              <tr key={i} style={{borderBottom: i<skus.length-1?'1px solid var(--border-1)':'none'}}>
+                <td style={{padding:'10px 20px',fontFamily:'var(--font-mono)',fontSize:12}}>{r.sku_code||r.sku}</td>
+                <td style={{padding:'10px 20px',fontSize:13}}>{r.description}</td>
+                <td style={{padding:'10px 20px',fontFamily:'var(--font-mono)',fontSize:12,textAlign:'right',fontVariantNumeric:'tabular-nums'}}>
+                  ${(r.annual_tariff_impact_usd||0).toLocaleString()}
+                </td>
+                <td style={{padding:'10px 20px'}}><Chip bg={s.bg} fg={s.fg}>{sev}</Chip></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </Glass>
+  );
+}
+
+function ScenarioCard({ scenario, rank }) {
+  const strategyColors = {reshore:'#4C6FAE',nearshore:'#B08038',dual_source:'#6D7588'};
+  const key = scenario.strategy||scenario.scenario_type||'';
+  const color = strategyColors[key]||'#6D7588';
+  const label = key.toUpperCase().replace('_','-');
+  const cost = scenario.annual_cost_delta_usd||0;
+  const lead = scenario.lead_time_months||0;
+  const cov  = scenario.supplier_coverage_pct||0;
+  const risk = scenario.risk_score||0;
+
+  return (
+    <Glass padding={20}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <Chip bg={`${color}22`} fg={color}>{label}</Chip>
+        <div className="eyebrow">RANK {rank}</div>
+      </div>
+      <div style={{fontFamily:'var(--font-mono)',fontSize:32,fontWeight:500,marginTop:12,
+        letterSpacing:'-.02em',fontVariantNumeric:'tabular-nums',
+        color:cost<0?'var(--status-ok)':'var(--fg-1)'}}>
+        {cost<0?'−':'+'}${Math.abs(cost).toLocaleString()}
+      </div>
+      <div style={{fontSize:12,color:'var(--fg-3)'}}>cost delta / year</div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginTop:14,
+        paddingTop:12,borderTop:'1px solid var(--border-1)'}}>
+        <div>
+          <div style={{fontFamily:'var(--font-mono)',fontSize:10,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--fg-3)'}}>Lead</div>
+          <div style={{fontFamily:'var(--font-mono)',fontSize:14,marginTop:2}}>{lead} mo</div>
+        </div>
+        <div>
+          <div style={{fontFamily:'var(--font-mono)',fontSize:10,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--fg-3)'}}>Coverage</div>
+          <div style={{fontFamily:'var(--font-mono)',fontSize:14,marginTop:2}}>{cov}%</div>
+        </div>
+        <div>
+          <div style={{fontFamily:'var(--font-mono)',fontSize:10,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--fg-3)'}}>Risk</div>
+          <div style={{fontFamily:'var(--font-mono)',fontSize:14,marginTop:2}}>{typeof risk==='number'?risk.toFixed(2):risk}</div>
+        </div>
+      </div>
+      {scenario.recommendation_rationale && (
+        <div style={{marginTop:12,fontSize:12,color:'var(--fg-2)',lineHeight:'18px'}}>
+          {scenario.recommendation_rationale}
+        </div>
+      )}
+      {scenario.summary && (
+        <div style={{marginTop:8,fontSize:12,color:'var(--fg-2)',lineHeight:'18px'}}>{scenario.summary}</div>
+      )}
+    </Glass>
+  );
+}
+
+function HitlGate({ rec, onApprove, onReject }) {
+  const [editing, setEditing] = useState(false);
+  const [body, setBody]       = useState(rec.draft_email?.body||'');
+  const [saving, setSaving]   = useState(false);
+
+  async function saveEdit() {
+    setSaving(true);
+    try { await api('PATCH',`/recommendations/${rec.id}/email`,{body}); setEditing(false); }
+    catch(e) { alert(e.message); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <Glass thick padding={24}>
+      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
+        <LIcon name="shield-check" size={20} color="var(--accent)"/>
+        <div className="h5">HITL Authorization Gate</div>
+      </div>
+      <div className="body-sm" style={{marginBottom:20}}>
+        No email will be sent without your explicit approval. Review the draft and authorize or reject.
+      </div>
+
+      <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:20}}>
+        {[
+          ['Tariff signal verified',true],
+          ['BOM exposure mapped',true],
+          ['3 scenarios modeled',true],
+          ['Scenarios ranked by Opus',true],
+          ['Draft email reviewed by Opus',true],
+          ['Operator approval',false],
+        ].map(([label,ok])=><Badge key={label} label={label} ok={ok}/>)}
+      </div>
+
+      {rec.draft_email && (
+        <div style={{marginBottom:20}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+            <div className="eyebrow">Draft email</div>
+            <Btn small variant="ghost" onClick={()=>setEditing(e=>!e)}>
+              {editing?'Cancel':'Edit'}
+            </Btn>
+          </div>
+          <div style={{padding:16,borderRadius:'var(--radius-2)',border:'1px solid var(--border-2)',
+            background:'rgba(255,255,255,.6)',marginBottom:8}}>
+            <div style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--fg-3)',marginBottom:6}}>
+              To: {rec.draft_email.to||'[supplier]'}<br/>
+              Subject: {rec.draft_email.subject}
+            </div>
+          </div>
+          {editing ? (
+            <div>
+              <Input value={body} onChange={e=>setBody(e.target.value)} textarea rows={10}
+                placeholder="Email body…"/>
+              <div style={{display:'flex',gap:8,marginTop:8}}>
+                <Btn small onClick={saveEdit} disabled={saving}>{saving?'Saving…':'Save edits'}</Btn>
+                <Btn small variant="ghost" onClick={()=>setEditing(false)}>Discard</Btn>
+              </div>
+            </div>
+          ) : (
+            <pre style={{fontFamily:'var(--font-mono)',fontSize:12,lineHeight:'20px',
+              color:'var(--fg-2)',whiteSpace:'pre-wrap',margin:0,
+              padding:14,borderRadius:'var(--radius-2)',border:'1px solid var(--border-1)',
+              background:'rgba(255,255,255,.5)',maxHeight:300,overflow:'auto'}}>
+              {rec.draft_email.body}
+            </pre>
+          )}
+        </div>
+      )}
+
+      <div style={{display:'flex',gap:10}}>
+        <Btn onClick={onApprove}>Approve & authorize send →</Btn>
+        <Btn variant="danger" onClick={onReject}>Reject — take no action</Btn>
+      </div>
+    </Glass>
+  );
+}
+
+function EmailDisplay({ email }) {
+  return (
+    <div style={{padding:16,borderRadius:'var(--radius-2)',border:'1px solid var(--border-1)',background:'rgba(255,255,255,.5)'}}>
+      <div style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--fg-3)',marginBottom:8}}>
+        To: {email.to||'[supplier]'}<br/>
+        Subject: {email.subject}
+      </div>
+      <pre style={{fontFamily:'var(--font-mono)',fontSize:12,lineHeight:'20px',
+        color:'var(--fg-2)',whiteSpace:'pre-wrap',margin:0}}>
+        {email.body}
+      </pre>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   HITL PAGE (dedicated — shows all awaiting)
+────────────────────────────────────────────────────────────────────────── */
+function HitlPage({ setPage }) {
+  const [recs, setRecs] = useState([]);
+
+  function load() {
+    api('GET','/recommendations')
+      .then(list=>setRecs(list.filter(r=>r.status==='awaiting_approval'||r.status==='edited')))
+      .catch(()=>{});
+  }
+
+  useEffect(()=>{load();}, []);
+
+  async function approve(id) {
+    await api('POST',`/recommendations/${id}/approve`); load();
+  }
+  async function reject(id) {
+    await api('POST',`/recommendations/${id}/reject`); load();
+  }
+
+  if (!recs.length) return (
+    <Glass style={{textAlign:'center',padding:60}}>
+      <LIcon name="shield-check" size={40} color="var(--status-ok)" style={{margin:'0 auto 16px'}}/>
+      <div className="h5" style={{marginBottom:8}}>No pending approvals</div>
+      <div className="body-sm">All recommendations have been reviewed.</div>
+    </Glass>
+  );
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:20}}>
+      <div className="h4">HITL Authorization Queue</div>
+      {recs.map(r=>(
+        <HitlGate key={r.id} rec={r} onApprove={()=>approve(r.id)} onReject={()=>reject(r.id)}/>
+      ))}
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   AUDIT LOG PAGE
+────────────────────────────────────────────────────────────────────────── */
+function AuditPage() {
+  const [runs, setRuns] = useState([]);
+  useEffect(()=>{api('GET','/audit').then(setRuns).catch(()=>{});}, []);
+
+  return (
+    <div>
+      <div className="h4" style={{marginBottom:16}}>Audit log</div>
+      <Glass dark padding={20}>
+        <div style={{fontFamily:'var(--font-mono)',fontSize:12,lineHeight:'22px',color:'#E4E4E8'}}>
+          {runs.length===0 && <div style={{color:'#555860'}}>No agent runs yet.</div>}
+          {runs.map((r,i)=>(
+            <div key={i}>
+              <span style={{color:'#555860'}}>{r.started_at?.slice(11,19)||'--:--:--'}</span>
+              {' '}
+              <span style={{color:'#EA936F'}}>[{r.agent_name||'agent'}]</span>
+              {' '}
+              {r.action||JSON.stringify(r.output_payload||{}).slice(0,80)}
+            </div>
+          ))}
+        </div>
+      </Glass>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   APP ROOT
+────────────────────────────────────────────────────────────────────────── */
+function App() {
+  const [page, setPage]   = useState('dashboard');
+  const [apiOk, setApiOk] = useState(false);
+  const [targetRec, setTargetRec] = useState(null);
+
+  useEffect(()=>{
+    api('GET','/health').then(()=>setApiOk(true)).catch(()=>setApiOk(false));
+    const t = setInterval(()=>{
+      api('GET','/health').then(()=>setApiOk(true)).catch(()=>setApiOk(false));
+    }, 5000);
+    return ()=>clearInterval(t);
+  }, []);
+
+  function navigate(p) { setPage(p); }
+
+  const pages = {
+    dashboard:       <DashboardPage setPage={navigate}/>,
+    upload:          <UploadPage/>,
+    events:          <EventsPage setPage={navigate} setTargetRec={setTargetRec}/>,
+    recommendations: <RecommendationsPage targetRec={targetRec} setTargetRec={setTargetRec} setPage={navigate}/>,
+    hitl:            <HitlPage setPage={navigate}/>,
+    audit:           <AuditPage/>,
+  };
+
+  return (
+    <div style={{minHeight:'100vh',display:'flex'}}>
+      <Sidebar page={page} setPage={navigate}/>
+      <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0}}>
+        <TopBar apiOk={apiOk}/>
+        <main style={{padding:'28px 32px 64px',flex:1}}>
+          {pages[page]||pages.dashboard}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
