@@ -1,0 +1,9 @@
+TO: Micron (US)
+SUBJECT: Notification of Re-Sourcing Decision for SKU MEM-8542-006
+PRIORITY: HIGH
+SKU REFS: MEM-8542-006
+GENERATED: 2026-04-18T16:31:14.487787Z
+
+--------------------------------------------------
+
+Dear Micron (US) team, we are writing to inform you that due to the recent tariff event USTR-2026-04-SEMI-001, we have decided to implement a dual-source strategy for SKU MEM-8542-006. As a result, we will be splitting 65% of our orders for this SKU to your company, with the remaining 35% to be sourced from ChangXin Memory (China). We request that you qualify for this new volume within the next 12 weeks. Please respond to this email within 5 business days to confirm your ability to meet this new demand.

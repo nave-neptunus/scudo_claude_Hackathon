@@ -11,9 +11,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-if not os.getenv("ANTHROPIC_API_KEY"):
-    print("ERROR: ANTHROPIC_API_KEY environment variable is not set.")
-    print("       export ANTHROPIC_API_KEY=sk-ant-...")
+if not os.getenv("GROQ_API_KEY"):
+    print("ERROR: GROQ_API_KEY environment variable is not set.")
+    print("       export GROQ_API_KEY=gsk_...")
     sys.exit(1)
 
 # Default demo tariff event — semiconductor tariffs April 2026

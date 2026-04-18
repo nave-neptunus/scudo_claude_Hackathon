@@ -1,0 +1,9 @@
+TO: Texas Instruments (US)
+SUBJECT: Notification of Re-Sourcing Decision for SKU IC-8541-002
+PRIORITY: HIGH
+SKU REFS: IC-8541-002
+GENERATED: 2026-04-18T16:31:14.488506Z
+
+--------------------------------------------------
+
+Dear Texas Instruments (US) team, we are writing to inform you that due to the recent tariff event USTR-2026-04-SEMI-001, we have decided to implement a dual-source strategy for SKU IC-8541-002. As a result, we will be splitting 65% of our orders for this SKU to your company, with the remaining 35% to be sourced from Analog Devices China. We request that you qualify for this new volume within the next 12 weeks. Please respond to this email within 5 business days to confirm your ability to meet this new demand.

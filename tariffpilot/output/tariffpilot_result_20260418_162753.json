@@ -1,0 +1,393 @@
+{
+  "run_id": "20260418_162753",
+  "raw_event": {
+    "event_id": "USTR-2026-04-SEMI-001",
+    "description": "84% tariff on Chinese integrated circuits and advanced semiconductors under Section 301",
+    "hs_codes_hint": [
+      "8541",
+      "8542",
+      "8534"
+    ],
+    "affected_countries_hint": [
+      "China"
+    ],
+    "rate_change_hint": "0% \u2192 84%",
+    "effective_date_hint": "2026-05-01"
+  },
+  "enriched_event": {
+    "event_id": "USTR-2026-04-SEMI-001",
+    "description": "84% tariff on Chinese integrated circuits and advanced semiconductors under Section 301",
+    "hs_codes": [
+      "8541",
+      "8542"
+    ],
+    "old_rate_pct": 0.0,
+    "new_rate_pct": 84.0,
+    "rate_delta_pct": 84.0,
+    "affected_countries": [
+      "China"
+    ],
+    "effective_date": "2026-05-01",
+    "threat_level": "CRITICAL",
+    "confidence_score": 0.92,
+    "search_rounds_used": 2,
+    "key_facts": [
+      "HTS codes 8541 and 8542 are subject to the tariff",
+      "Korea and Taiwan are exempt from the tariffs",
+      "CHIPS Act-funded fabs are exempt from the tariffs with >50% US value content"
+    ],
+    "sources": [
+      "https://ustr.gov/about-us/policy-offices/press-office/press-releases/2026/april/semiconductor-tariffs",
+      "https://commerce.gov/chips-act/exemptions-2026"
+    ]
+  },
+  "bom_analysis": {
+    "affected_skus": [
+      {
+        "sku": "IC-8542-001",
+        "description": "Application Processor SoC",
+        "hs_code": "8542.31.00",
+        "supplier": "TSMC Manufacturing",
+        "supplier_country": "China",
+        "annual_spend_usd": 22500000,
+        "annual_tariff_impact_usd": 18900000,
+        "severity": "CRITICAL",
+        "match_level": "4-digit",
+        "has_domestic_alt": true,
+        "alt_supplier": "GlobalFoundries (US)",
+        "lead_time_weeks": 16,
+        "critical_path": true
+      },
+      {
+        "sku": "MEM-8542-006",
+        "description": "LPDDR5 Memory Die \u2014 16GB",
+        "hs_code": "8542.32.00",
+        "supplier": "ChangXin Memory (China)",
+        "supplier_country": "China",
+        "annual_spend_usd": 19200000,
+        "annual_tariff_impact_usd": 16128000,
+        "severity": "CRITICAL",
+        "match_level": "4-digit",
+        "has_domestic_alt": true,
+        "alt_supplier": "Micron (US)",
+        "lead_time_weeks": 20,
+        "critical_path": true
+      },
+      {
+        "sku": "IC-8541-002",
+        "description": "Power Management IC",
+        "hs_code": "8541.10.00",
+        "supplier": "Analog Devices China",
+        "supplier_country": "China",
+        "annual_spend_usd": 7000000,
+        "annual_tariff_impact_usd": 5880000,
+        "severity": "CRITICAL",
+        "match_level": "4-digit",
+        "has_domestic_alt": true,
+        "alt_supplier": "Texas Instruments (US)",
+        "lead_time_weeks": 8,
+        "critical_path": true
+      },
+      {
+        "sku": "IC-8542-004",
+        "description": "WiFi 6E + Bluetooth 5.3 Combo Chip",
+        "hs_code": "8542.39.00",
+        "supplier": "MediaTek China",
+        "supplier_country": "China",
+        "annual_spend_usd": 7000000,
+        "annual_tariff_impact_usd": 5880000,
+        "severity": "CRITICAL",
+        "match_level": "4-digit",
+        "has_domestic_alt": true,
+        "alt_supplier": "Qualcomm (US)",
+        "lead_time_weeks": 14,
+        "critical_path": false
+      }
+    ],
+    "total_annual_tariff_impact_usd": 46788000,
+    "affected_sku_count": 4,
+    "total_sku_count": 10,
+    "severity_breakdown": {
+      "CRITICAL": 4,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0
+    }
+  },
+  "scenarios": [
+    {
+      "strategy": "reshore",
+      "annual_cost_delta_usd": -14544000.0,
+      "lead_time_months": 6,
+      "supplier_coverage_pct": 100.0,
+      "risk_score": 0.2,
+      "confidence": 0.9,
+      "top_sku_actions": [
+        {
+          "sku": "IC-8542-001",
+          "action": "reshore",
+          "new_supplier": "GlobalFoundries (US)",
+          "cost_delta_usd": -15120000.0
+        },
+        {
+          "sku": "MEM-8542-006",
+          "action": "reshore",
+          "new_supplier": "Micron (US)",
+          "cost_delta_usd": -16128000.0
+        },
+        {
+          "sku": "IC-8541-002",
+          "action": "reshore",
+          "new_supplier": "Texas Instruments (US)",
+          "cost_delta_usd": -5880000.0
+        },
+        {
+          "sku": "IC-8542-004",
+          "action": "reshore",
+          "new_supplier": "Qualcomm (US)",
+          "cost_delta_usd": -5880000.0
+        }
+      ],
+      "pros": [
+        "Elimination of 84% tariffs on Chinese imports",
+        "Qualification for 25% tax credit under CHIPS Act",
+        "Reduced supply chain risk"
+      ],
+      "cons": [
+        "Potential labor premium of 2.3x China due to US labor costs"
+      ],
+      "summary": "Reshoring all affected SKUs to US-based suppliers could result in annual cost savings of $14.5 million due to eliminated tariffs and potential tax credits, despite potential labor premium costs. This strategy mitigates supply chain risk and ensures compliance with the CHIPS Act. Lead times for reshoring range from 8-20 weeks, averaging 6 months."
+    },
+    {
+      "strategy": "nearshore",
+      "annual_cost_delta_usd": -2339000.0,
+      "lead_time_months": 8,
+      "supplier_coverage_pct": 100.0,
+      "risk_score": 20.0,
+      "confidence": 90.0,
+      "top_sku_actions": [
+        {
+          "sku": "IC-8542-001",
+          "action": "diversify",
+          "new_supplier": "Foxconn Mexico",
+          "cost_delta_usd": -945000.0
+        },
+        {
+          "sku": "MEM-8542-006",
+          "action": "diversify",
+          "new_supplier": "SK Hynix Mexico",
+          "cost_delta_usd": -806400.0
+        },
+        {
+          "sku": "IC-8541-002",
+          "action": "diversify",
+          "new_supplier": "STMicroelectronics Mexico",
+          "cost_delta_usd": -294000.0
+        },
+        {
+          "sku": "IC-8542-004",
+          "action": "diversify",
+          "new_supplier": "Broadcom Mexico",
+          "cost_delta_usd": -654500.0
+        }
+      ],
+      "pros": [
+        "Reduced tariff risk",
+        "Proximity to US market",
+        "Lower labor costs compared to US"
+      ],
+      "cons": [
+        "Higher logistics costs",
+        "Potential supply chain disruptions"
+      ],
+      "summary": "Nearshoring to Mexico can reduce tariff risk and lower labor costs, with a potential annual cost delta of -$2,339,000 and a lead time of 8 months. The top SKU actions include diversifying suppliers for IC-8542-001, MEM-8542-006, IC-8541-002, and IC-8542-004 to Foxconn Mexico, SK Hynix Mexico, STMicroelectronics Mexico, and Broadcom Mexico, respectively."
+    },
+    {
+      "strategy": "dual_source",
+      "error": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kmk9j8t9eph8tv1yrz29p30v` service tier `on_demand` on tokens per minute (TPM): Limit 12000, Used 11602, Requested 5296. Please try again in 24.49s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+      "confidence": 0.0
+    }
+  ],
+  "ranked_scenarios": [
+    {
+      "strategy": "reshore",
+      "annual_cost_delta_usd": -14544000.0,
+      "lead_time_months": 6,
+      "supplier_coverage_pct": 100.0,
+      "risk_score": 0.2,
+      "confidence": 0.9,
+      "top_sku_actions": [
+        {
+          "sku": "IC-8542-001",
+          "action": "reshore",
+          "new_supplier": "GlobalFoundries (US)",
+          "cost_delta_usd": -15120000.0
+        },
+        {
+          "sku": "MEM-8542-006",
+          "action": "reshore",
+          "new_supplier": "Micron (US)",
+          "cost_delta_usd": -16128000.0
+        },
+        {
+          "sku": "IC-8541-002",
+          "action": "reshore",
+          "new_supplier": "Texas Instruments (US)",
+          "cost_delta_usd": -5880000.0
+        },
+        {
+          "sku": "IC-8542-004",
+          "action": "reshore",
+          "new_supplier": "Qualcomm (US)",
+          "cost_delta_usd": -5880000.0
+        }
+      ],
+      "pros": [
+        "Elimination of 84% tariffs on Chinese imports",
+        "Qualification for 25% tax credit under CHIPS Act",
+        "Reduced supply chain risk"
+      ],
+      "cons": [
+        "Potential labor premium of 2.3x China due to US labor costs"
+      ],
+      "summary": "Reshoring all affected SKUs to US-based suppliers could result in annual cost savings of $14.5 million due to eliminated tariffs and potential tax credits, despite potential labor premium costs. This strategy mitigates supply chain risk and ensures compliance with the CHIPS Act. Lead times for reshoring range from 8-20 weeks, averaging 6 months.",
+      "rank": 1,
+      "recommendation_rationale": "This strategy results in the highest annual cost savings, has the lowest risk score, and maintains a high supplier coverage percentage."
+    },
+    {
+      "strategy": "nearshore",
+      "annual_cost_delta_usd": -2339000.0,
+      "lead_time_months": 8,
+      "supplier_coverage_pct": 100.0,
+      "risk_score": 20.0,
+      "confidence": 90.0,
+      "top_sku_actions": [
+        {
+          "sku": "IC-8542-001",
+          "action": "diversify",
+          "new_supplier": "Foxconn Mexico",
+          "cost_delta_usd": -945000.0
+        },
+        {
+          "sku": "MEM-8542-006",
+          "action": "diversify",
+          "new_supplier": "SK Hynix Mexico",
+          "cost_delta_usd": -806400.0
+        },
+        {
+          "sku": "IC-8541-002",
+          "action": "diversify",
+          "new_supplier": "STMicroelectronics Mexico",
+          "cost_delta_usd": -294000.0
+        },
+        {
+          "sku": "IC-8542-004",
+          "action": "diversify",
+          "new_supplier": "Broadcom Mexico",
+          "cost_delta_usd": -654500.0
+        }
+      ],
+      "pros": [
+        "Reduced tariff risk",
+        "Proximity to US market",
+        "Lower labor costs compared to US"
+      ],
+      "cons": [
+        "Higher logistics costs",
+        "Potential supply chain disruptions"
+      ],
+      "summary": "Nearshoring to Mexico can reduce tariff risk and lower labor costs, with a potential annual cost delta of -$2,339,000 and a lead time of 8 months. The top SKU actions include diversifying suppliers for IC-8542-001, MEM-8542-006, IC-8541-002, and IC-8542-004 to Foxconn Mexico, SK Hynix Mexico, STMicroelectronics Mexico, and Broadcom Mexico, respectively.",
+      "rank": 2,
+      "recommendation_rationale": "This strategy results in lower annual cost savings compared to the reshore strategy but still maintains a high supplier coverage percentage. However, it has a significantly higher risk score."
+    },
+    {
+      "strategy": "dual_source",
+      "error": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kmk9j8t9eph8tv1yrz29p30v` service tier `on_demand` on tokens per minute (TPM): Limit 12000, Used 11602, Requested 5296. Please try again in 24.49s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+      "confidence": 0.0,
+      "rank": 3,
+      "recommendation_rationale": "This strategy is not viable due to the error and lack of confidence, resulting in the lowest rank."
+    }
+  ],
+  "package": {
+    "status": "EXECUTED",
+    "chosen_scenario": {
+      "strategy": "reshore",
+      "annual_cost_delta_usd": -14544000.0,
+      "lead_time_months": 6,
+      "supplier_coverage_pct": 100.0,
+      "risk_score": 0.2,
+      "confidence": 0.9,
+      "top_sku_actions": [
+        {
+          "sku": "IC-8542-001",
+          "action": "reshore",
+          "new_supplier": "GlobalFoundries (US)",
+          "cost_delta_usd": -15120000.0
+        },
+        {
+          "sku": "MEM-8542-006",
+          "action": "reshore",
+          "new_supplier": "Micron (US)",
+          "cost_delta_usd": -16128000.0
+        },
+        {
+          "sku": "IC-8541-002",
+          "action": "reshore",
+          "new_supplier": "Texas Instruments (US)",
+          "cost_delta_usd": -5880000.0
+        },
+        {
+          "sku": "IC-8542-004",
+          "action": "reshore",
+          "new_supplier": "Qualcomm (US)",
+          "cost_delta_usd": -5880000.0
+        }
+      ],
+      "pros": [
+        "Elimination of 84% tariffs on Chinese imports",
+        "Qualification for 25% tax credit under CHIPS Act",
+        "Reduced supply chain risk"
+      ],
+      "cons": [
+        "Potential labor premium of 2.3x China due to US labor costs"
+      ],
+      "summary": "Reshoring all affected SKUs to US-based suppliers could result in annual cost savings of $14.5 million due to eliminated tariffs and potential tax credits, despite potential labor premium costs. This strategy mitigates supply chain risk and ensures compliance with the CHIPS Act. Lead times for reshoring range from 8-20 weeks, averaging 6 months.",
+      "rank": 1,
+      "recommendation_rationale": "This strategy results in the highest annual cost savings, has the lowest risk score, and maintains a high supplier coverage percentage."
+    },
+    "emails": [],
+    "authorized_at": "2026-04-18T16:29:22.617415",
+    "email_dir": "output/emails"
+  },
+  "audit_trail": [
+    {
+      "stage": "SignalMonitor",
+      "started_at": "2026-04-18T16:27:53.702675",
+      "completed_at": "2026-04-18T16:27:57.363408",
+      "attempt": 1,
+      "status": "SUCCESS"
+    },
+    {
+      "stage": "BOMMapper",
+      "started_at": "2026-04-18T16:27:57.363448",
+      "completed_at": "2026-04-18T16:28:09.228317",
+      "attempt": 1,
+      "status": "SUCCESS"
+    },
+    {
+      "stage": "ScenarioModeler[3\u00d7 parallel]",
+      "started_at": "2026-04-18T16:28:09.228342",
+      "completed_at": "2026-04-18T16:28:45.546240",
+      "attempt": 1,
+      "status": "SUCCESS"
+    },
+    {
+      "stage": "HITLGate",
+      "started_at": "2026-04-18T16:29:13.970138",
+      "completed_at": "2026-04-18T16:29:22.617429",
+      "attempt": 1,
+      "status": "SUCCESS"
+    }
+  ],
+  "completed_at": "2026-04-18T16:29:22.617441"
+}
