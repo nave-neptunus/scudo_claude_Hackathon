@@ -1,3 +1,4 @@
+from __future__ import annotations
 """HITL Gate Agent — human authorization + email drafting with double confirmation."""
 
 import os

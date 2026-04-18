@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Federal Register REST API client — paginates tariff-related documents."""
 
 import hashlib

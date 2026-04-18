@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Signal Monitor Agent — two modes:
 
 1. run(raw_event)           — ReAct loop; enriches a known event via Brave Search.

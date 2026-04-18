@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Scenario Modeler Agent — 3 isolated instances run in parallel via asyncio.gather()."""
 
 import json

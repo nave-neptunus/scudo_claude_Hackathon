@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Brave Search MCP wrapper — uses real MCP subprocess when BRAVE_API_KEY is set,
 falls back to realistic mock data otherwise."""
 

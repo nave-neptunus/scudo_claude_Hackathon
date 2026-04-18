@@ -1,3 +1,4 @@
+from __future__ import annotations
 #!/usr/bin/env python3
 """Serve the Espada operator console on localhost:3000."""
 import http.server

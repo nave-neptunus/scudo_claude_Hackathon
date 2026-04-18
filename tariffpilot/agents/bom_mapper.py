@@ -1,3 +1,4 @@
+from __future__ import annotations
 """BOM Mapper Agent — cross-references enriched tariff event against company BOM."""
 
 import json
