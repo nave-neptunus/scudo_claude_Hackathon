@@ -1,4 +1,6 @@
-<!doctype html>
+import json
+
+HTML_CONTENT = """<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -548,3 +550,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>
 </html>
+"""
+
+with open("index.html", "w") as f:
+    f.write(HTML_CONTENT)
+
+print("index.html successfully generated!")
