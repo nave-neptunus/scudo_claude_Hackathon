@@ -6,9 +6,9 @@ import json
 import asyncio
 from datetime import datetime
 from pathlib import Path
-import anthropic
+from groq import AsyncGroq
 
-MODEL = "claude-sonnet-4-6"
+MODEL = "llama-3.3-70b-versatile"
 
 EMAIL_SYSTEM = """<instructions>
 You are a professional supply chain communications specialist. Draft supplier notification
@@ -46,7 +46,7 @@ No markdown. Return ONLY the JSON array.
 class HITLGateAgent:
     def __init__(self, demo_mode: bool = False):
         self.demo_mode = demo_mode
-        self.client = anthropic.AsyncAnthropic()
+        self.client = AsyncGroq()
         self.output_dir = Path("output")
         self.email_dir = self.output_dir / "emails"
         self.output_dir.mkdir(exist_ok=True)
@@ -166,18 +166,16 @@ class HITLGateAgent:
             f"Chosen Strategy:\n{json.dumps(scenario, indent=2)}"
         )
 
-        response = await self.client.messages.create(
+        response = await self.client.chat.completions.create(
             model=MODEL,
             max_tokens=4096,
-            system=EMAIL_SYSTEM,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {"role": "system", "content": EMAIL_SYSTEM},
+                {"role": "user", "content": prompt},
+            ],
         )
 
-        text = ""
-        for block in response.content:
-            if hasattr(block, "text"):
-                text = block.text
-                break
+        text = response.choices[0].message.content or ""
 
         text = text.strip()
         if text.startswith("```"):

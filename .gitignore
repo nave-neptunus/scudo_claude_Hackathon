@@ -1,5 +1,26 @@
+# Environment
 .env
-.env
+*.env
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Output / runtime artifacts
+tariffpilot/output/
+tariffpilot/data/seen_document_numbers.json
+
+# Tooling
+.claire/
 .claude/
+
+# OS
+.DS_Store
+Thumbs.db

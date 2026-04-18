@@ -1,11 +1,80 @@
-"""Signal Monitor Agent — ReAct loop with Brave Search tool."""
+"""Signal Monitor Agent — two modes:
+
+1. run(raw_event)           — ReAct loop; enriches a known event via Brave Search.
+2. poll_federal_register()  — discovery mode; fetches new tariff documents from the
+                              Federal Register REST API, extracts structured metadata
+                              with Llama 3.3 70B, and returns TariffEvent dicts.
+"""
 
 import json
+import time
 import asyncio
-import anthropic
-from tools.mcp_client import BraveMCPClient
+import re
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Optional
 
-MODEL = "claude-sonnet-4-6"
+from groq import AsyncGroq
+from pydantic import BaseModel, ValidationError
+
+from tools.mcp_client import BraveMCPClient
+from tools.federal_register import FederalRegisterClient
+
+MODEL = "llama-3.3-70b-versatile"
+
+# File that persists document_numbers seen across CLI runs so we don't reprocess
+_SEEN_IDS_PATH = Path("data/seen_document_numbers.json")
+# Append-only audit log — one JSON object per line (mirrors the agent_runs DB table)
+_AGENT_RUNS_LOG = Path("output/agent_runs.jsonl")
+
+
+# ---------------------------------------------------------------------------
+# Pydantic model for LLM extraction output (validates before use)
+# ---------------------------------------------------------------------------
+
+class FedRegDocExtraction(BaseModel):
+    """Structured metadata extracted from a Federal Register document."""
+    hs_codes: list[str]
+    jurisdictions: list[str]       # ISO-3166 country codes
+    effective_date: Optional[str] = None   # YYYY-MM-DD or null
+    rate_change_bps: Optional[int] = None  # e.g. 0% → 84% = 8400; negative = tariff cut
+
+
+# ---------------------------------------------------------------------------
+# Prompt for Federal Register extraction
+# ---------------------------------------------------------------------------
+
+EXTRACTION_SYSTEM_PROMPT = """<instructions>
+You are a US trade-law analyst. Given the title and abstract of a Federal Register
+document, extract structured tariff metadata. Be conservative: only include values
+you can reliably infer from the text. Leave fields null when uncertain.
+</instructions>
+
+<rules>
+- hs_codes: list of HS/HTS code strings found in the text (e.g. "8542.31", "8542").
+  Include all precision levels mentioned. Return [] if none found.
+- jurisdictions: ISO-3166 two-letter country codes for the SOURCE countries affected
+  by the tariff (e.g. ["CN"] for China, ["RU"] for Russia). Return [] if none found.
+- effective_date: ISO date string YYYY-MM-DD of the tariff effective date, or null.
+- rate_change_bps: integer basis-point change in tariff rate (100 bps = 1 percentage
+  point). Positive = tariff increase, negative = decrease.
+  Example: 0% → 84% = 8400. Return null if you cannot determine it confidently.
+</rules>
+
+<output_format>
+Return ONLY valid JSON — no markdown, no explanation:
+{
+  "hs_codes": ["8542.31", "8542.39"],
+  "jurisdictions": ["CN"],
+  "effective_date": "2026-05-01",
+  "rate_change_bps": 8400
+}
+</output_format>"""
+
+
+# ---------------------------------------------------------------------------
+# Prompt for Brave Search ReAct enrichment
+# ---------------------------------------------------------------------------
 
 SYSTEM_PROMPT = """<instructions>
 You are a trade intelligence analyst specializing in tariff signal monitoring.
@@ -53,100 +122,107 @@ No markdown, no explanation, no code fences. Return ONLY the JSON object.
 </output_format>"""
 
 BRAVE_TOOL_DEF = {
-    "name": "brave_search",
-    "description": "Search the web for current tariff and trade policy information. Returns recent news and official government announcements.",
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "query": {
-                "type": "string",
-                "description": "Search query — be specific about HS codes, countries, and tariff programs",
+    "type": "function",
+    "function": {
+        "name": "brave_search",
+        "description": "Search the web for current tariff and trade policy information. Returns recent news and official government announcements.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Search query — be specific about HS codes, countries, and tariff programs",
+                },
+                "count": {
+                    "type": "integer",
+                    "description": "Number of results (1-5)",
+                    "default": 5,
+                },
             },
-            "count": {
-                "type": "integer",
-                "description": "Number of results (1-5)",
-                "default": 5,
-            },
+            "required": ["query"],
         },
-        "required": ["query"],
     },
 }
 
 
 class SignalMonitorAgent:
     def __init__(self):
-        self.client = anthropic.AsyncAnthropic()
+        self.client = AsyncGroq()
         self.brave = BraveMCPClient()
         self.max_search_rounds = 3
+
+    # ------------------------------------------------------------------
+    # MODE 1: Brave Search ReAct enrichment
+    # ------------------------------------------------------------------
 
     async def run(self, raw_event: dict) -> dict:
         print(f"\n[SignalMonitor] Starting ReAct loop for event: {raw_event.get('event_id', 'unknown')}")
         messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
             {
                 "role": "user",
                 "content": f"Enrich this tariff event signal:\n{json.dumps(raw_event, indent=2)}",
-            }
+            },
         ]
 
         search_rounds = 0
         final_result = None
 
         while search_rounds < self.max_search_rounds:
-            response = await self.client.messages.create(
+            response = await self.client.chat.completions.create(
                 model=MODEL,
                 max_tokens=4096,
-                system=SYSTEM_PROMPT,
                 tools=[BRAVE_TOOL_DEF],
+                tool_choice="auto",
                 messages=messages,
             )
 
-            if response.stop_reason == "end_turn":
-                text = self._extract_text(response)
+            msg = response.choices[0].message
+            finish_reason = response.choices[0].finish_reason
+
+            if finish_reason == "stop" or not msg.tool_calls:
+                text = msg.content or ""
                 final_result = self._parse_json(text)
                 if final_result:
                     final_result["search_rounds_used"] = search_rounds
                 break
 
-            if response.stop_reason == "tool_use":
-                tool_results = []
-                has_search = False
+            if finish_reason == "tool_calls" and msg.tool_calls:
+                messages.append({
+                    "role": "assistant",
+                    "content": msg.content,
+                    "tool_calls": [
+                        {
+                            "id": tc.id,
+                            "type": "function",
+                            "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+                        }
+                        for tc in msg.tool_calls
+                    ],
+                })
 
-                for block in response.content:
-                    if block.type == "tool_use" and block.name == "brave_search":
-                        has_search = True
+                for tc in msg.tool_calls:
+                    if tc.function.name == "brave_search":
                         search_rounds += 1
-                        query = block.input.get("query", "")
-                        count = block.input.get("count", 5)
+                        args = json.loads(tc.function.arguments)
+                        query = args.get("query", "")
+                        count = args.get("count", 5)
                         print(f"[SignalMonitor] Round {search_rounds}: searching → {query!r}")
                         results = await self._execute_brave_search(query, count)
-                        tool_results.append({
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tc.id,
                             "content": json.dumps(results),
                         })
 
-                if not has_search:
-                    text = self._extract_text(response)
-                    final_result = self._parse_json(text)
-                    if final_result:
-                        final_result["search_rounds_used"] = search_rounds
-                    break
-
-                messages.append({"role": "assistant", "content": response.content})
-                messages.append({"role": "user", "content": tool_results})
-
-                confidence = self._check_confidence(response)
-                if confidence >= 0.85:
-                    final_result_response = await self.client.messages.create(
+                if search_rounds >= self.max_search_rounds:
+                    messages.append({"role": "user", "content": "Confidence is sufficient. Return the final enriched JSON now."})
+                    final_response = await self.client.chat.completions.create(
                         model=MODEL,
                         max_tokens=2048,
-                        system=SYSTEM_PROMPT,
-                        tools=[BRAVE_TOOL_DEF],
-                        messages=messages + [
-                            {"role": "user", "content": "Confidence is sufficient. Return the final enriched JSON now."}
-                        ],
+                        messages=messages,
                     )
-                    text = self._extract_text(final_result_response)
+                    text = final_response.choices[0].message.content or ""
                     final_result = self._parse_json(text)
                     if final_result:
                         final_result["search_rounds_used"] = search_rounds
@@ -160,16 +236,148 @@ class SignalMonitorAgent:
         print(f"[SignalMonitor] Done. Confidence: {final_result.get('confidence_score', 0):.2f}, rounds: {final_result.get('search_rounds_used', 0)}")
         return final_result
 
+    # ------------------------------------------------------------------
+    # MODE 2: Federal Register polling
+    # ------------------------------------------------------------------
+
+    async def poll_federal_register(
+        self, seen_ids: Optional[set[str]] = None
+    ) -> tuple[list[dict], set[str]]:
+        """Discover new tariff documents from the Federal Register REST API.
+
+        Loads previously seen document_numbers from disk (or uses the caller-
+        supplied set), fetches only new documents, runs LLM extraction on each,
+        and persists the updated seen set so the next call is incremental.
+
+        Returns:
+            events:           List of TariffEvent dicts ready for the BOM Mapper.
+            updated_seen_ids: The full set of seen document_numbers after this run.
+        """
+        if seen_ids is None:
+            seen_ids = _load_seen_ids()
+
+        fed_client = FederalRegisterClient(search_term="tariff")
+        print(f"\n[SignalMonitor] Polling Federal Register (known docs: {len(seen_ids)})")
+
+        new_docs, audit_entries = await fed_client.fetch_tariff_documents(seen_ids)
+        print(f"[SignalMonitor] Found {len(new_docs)} new Federal Register document(s)")
+
+        # Log every API call (read-only calls must still be logged)
+        for entry in audit_entries:
+            self._log_agent_run(entry)
+
+        if not new_docs:
+            return [], seen_ids
+
+        # Extract structured metadata from each new document concurrently
+        extraction_tasks = [self._extract_tariff_metadata(doc) for doc in new_docs]
+        extractions = await asyncio.gather(*extraction_tasks, return_exceptions=True)
+
+        events: list[dict] = []
+        for doc, extraction in zip(new_docs, extractions):
+            doc_number = doc["document_number"]
+
+            if isinstance(extraction, Exception):
+                print(f"[SignalMonitor] Extraction failed for {doc_number}: {extraction}")
+                # Mark seen even on failure so we don't retry indefinitely
+                seen_ids.add(doc_number)
+                continue
+
+            agencies = doc.get("agencies") or []
+            agency_names = [a.get("name", "") for a in agencies if isinstance(a, dict)]
+
+            event: dict = {
+                "event_id": doc_number,
+                "source": "federal_register",
+                "published_at": doc.get("effective_on") or datetime.now(timezone.utc).isoformat(),
+                "title": doc.get("title", ""),
+                "url": doc.get("html_url", ""),
+                "hs_codes": extraction.hs_codes,
+                "jurisdictions": extraction.jurisdictions,
+                "rate_change_bps": extraction.rate_change_bps,
+                "effective_date": extraction.effective_date,
+                "raw_excerpt": (doc.get("abstract") or "")[:2000],
+                "agencies": agency_names,
+                "content_hash": doc.get("content_hash", ""),
+                "document_number": doc_number,
+            }
+            events.append(event)
+            seen_ids.add(doc_number)
+
+            print(
+                f"[SignalMonitor] {doc_number}: {len(extraction.hs_codes)} HS codes, "
+                f"jurisdictions={extraction.jurisdictions}"
+            )
+
+        _save_seen_ids(seen_ids)
+        print(f"[SignalMonitor] Returning {len(events)} event(s) from Federal Register poll")
+        return events, seen_ids
+
+    async def _extract_tariff_metadata(self, doc: dict) -> FedRegDocExtraction:
+        """Call Llama 3.3 70B to extract hs_codes/jurisdictions/date/rate from
+        a Federal Register document title + abstract. Validates with Pydantic."""
+        user_content = (
+            f"Title: {doc.get('title', '')}\n\n"
+            f"Abstract: {doc.get('abstract') or '(no abstract)'}"
+        )
+
+        started_at = datetime.now(timezone.utc).isoformat()
+        t0 = time.monotonic()
+
+        response = await self.client.chat.completions.create(
+            model=MODEL,
+            max_tokens=512,
+            messages=[
+                {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
+                {"role": "user", "content": user_content},
+            ],
+        )
+
+        latency_ms = int((time.monotonic() - t0) * 1000)
+        text = response.choices[0].message.content or ""
+
+        self._log_agent_run({
+            "agent_name": "signal_monitor",
+            "model": MODEL,
+            "input_payload": {
+                "source": "federal_register_extraction",
+                "document_number": doc.get("document_number"),
+            },
+            "output_payload": {"raw_response": text[:500]},
+            "latency_ms": latency_ms,
+            "started_at": started_at,
+            "ended_at": datetime.now(timezone.utc).isoformat(),
+        })
+
+        raw = self._parse_json(text)
+        if raw is None:
+            raise ValueError(f"LLM returned unparseable JSON for {doc.get('document_number')}: {text[:200]}")
+
+        # Pydantic validates field types and coerces where safe
+        return FedRegDocExtraction(**raw)
+
+    # ------------------------------------------------------------------
+    # Audit logging
+    # ------------------------------------------------------------------
+
+    def _log_agent_run(self, entry: dict) -> None:
+        """Append one agent_runs record to output/agent_runs.jsonl."""
+        _AGENT_RUNS_LOG.parent.mkdir(exist_ok=True)
+        record = {
+            "logged_at": datetime.now(timezone.utc).isoformat(),
+            **entry,
+        }
+        with _AGENT_RUNS_LOG.open("a") as f:
+            f.write(json.dumps(record) + "\n")
+
+    # ------------------------------------------------------------------
+    # Shared helpers
+    # ------------------------------------------------------------------
+
     async def _execute_brave_search(self, query: str, count: int) -> list[dict]:
         return await self.brave.search(query, count)
 
-    def _extract_text(self, response) -> str:
-        for block in response.content:
-            if hasattr(block, "text"):
-                return block.text
-        return ""
-
-    def _parse_json(self, text: str) -> dict | None:
+    def _parse_json(self, text: str) -> Optional[dict]:
         text = text.strip()
         if text.startswith("```"):
             lines = text.split("\n")
@@ -186,10 +394,8 @@ class SignalMonitorAgent:
                     pass
         return None
 
-    def _check_confidence(self, response) -> float:
-        text = self._extract_text(response)
+    def _check_confidence(self, text: str) -> float:
         if "confidence" in text.lower():
-            import re
             m = re.search(r'"confidence[^"]*":\s*([0-9.]+)', text)
             if m:
                 try:
@@ -224,3 +430,25 @@ class SignalMonitorAgent:
             "key_facts": ["Fallback enrichment — real search rounds exhausted"],
             "sources": [],
         }
+
+
+# ------------------------------------------------------------------
+# Persistence helpers for seen document_numbers
+# ------------------------------------------------------------------
+
+def _load_seen_ids() -> set[str]:
+    """Load persisted document_numbers from disk. Returns empty set on first run."""
+    if not _SEEN_IDS_PATH.exists():
+        return set()
+    try:
+        with _SEEN_IDS_PATH.open() as f:
+            return set(json.load(f))
+    except Exception:
+        return set()
+
+
+def _save_seen_ids(seen_ids: set[str]) -> None:
+    """Persist document_numbers to disk so the next run is incremental."""
+    _SEEN_IDS_PATH.parent.mkdir(exist_ok=True)
+    with _SEEN_IDS_PATH.open("w") as f:
+        json.dump(sorted(seen_ids), f, indent=2)

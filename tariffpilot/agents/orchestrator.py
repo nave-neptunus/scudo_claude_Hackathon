@@ -2,7 +2,7 @@
 
 import json
 import asyncio
-import anthropic
+from groq import AsyncGroq
 from datetime import datetime
 from pathlib import Path
 
@@ -12,7 +12,7 @@ from agents.scenario_modeler import run_parallel_scenarios
 from agents.hitl_gate import HITLGateAgent
 from data.bom_loader import load_bom
 
-MODEL = "claude-sonnet-4-6"
+MODEL = "llama-3.3-70b-versatile"
 OUTPUT_DIR = Path("output")
 
 SYNTHESIZE_SYSTEM = """<instructions>
@@ -44,7 +44,7 @@ No markdown. Return ONLY the JSON array.
 class OrchestratorAgent:
     def __init__(self, demo_mode: bool = False):
         self.demo_mode = demo_mode
-        self.client = anthropic.AsyncAnthropic()
+        self.client = AsyncGroq()
         self.audit_trail = []
         OUTPUT_DIR.mkdir(exist_ok=True)
 
@@ -143,20 +143,16 @@ class OrchestratorAgent:
     async def _synthesize(self, scenarios: list[dict]) -> list[dict]:
         print(f"\n[Orchestrator] Synthesizing and ranking {len(scenarios)} scenarios...")
 
-        response = await self.client.messages.create(
+        response = await self.client.chat.completions.create(
             model=MODEL,
             max_tokens=4096,
-            system=SYNTHESIZE_SYSTEM,
             messages=[
-                {"role": "user", "content": json.dumps(scenarios, indent=2)}
+                {"role": "system", "content": SYNTHESIZE_SYSTEM},
+                {"role": "user", "content": json.dumps(scenarios, indent=2)},
             ],
         )
 
-        text = ""
-        for block in response.content:
-            if hasattr(block, "text"):
-                text = block.text
-                break
+        text = response.choices[0].message.content or ""
 
         text = text.strip()
         if text.startswith("```"):

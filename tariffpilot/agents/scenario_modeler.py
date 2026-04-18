@@ -2,9 +2,9 @@
 
 import json
 import asyncio
-import anthropic
+from groq import AsyncGroq
 
-MODEL = "claude-sonnet-4-6"
+MODEL = "llama-3.3-70b-versatile"
 
 SCENARIO_SYSTEMS = {
     "reshore": """<instructions>
@@ -132,7 +132,7 @@ class ScenarioModelerAgent:
     def __init__(self, strategy: str):
         assert strategy in SCENARIO_SYSTEMS, f"Unknown strategy: {strategy}"
         self.strategy = strategy
-        self.client = anthropic.AsyncAnthropic()
+        self.client = AsyncGroq()
 
     async def run(self, enriched_event: dict, bom_analysis: dict) -> dict:
         prompt = (
@@ -140,18 +140,16 @@ class ScenarioModelerAgent:
             f"BOM Analysis:\n{json.dumps(bom_analysis, indent=2)}"
         )
 
-        response = await self.client.messages.create(
+        response = await self.client.chat.completions.create(
             model=MODEL,
             max_tokens=4096,
-            system=SCENARIO_SYSTEMS[self.strategy],
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {"role": "system", "content": SCENARIO_SYSTEMS[self.strategy]},
+                {"role": "user", "content": prompt},
+            ],
         )
 
-        text = ""
-        for block in response.content:
-            if hasattr(block, "text"):
-                text = block.text
-                break
+        text = response.choices[0].message.content or ""
 
         text = text.strip()
         if text.startswith("```"):

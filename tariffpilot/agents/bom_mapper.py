@@ -2,9 +2,9 @@
 
 import json
 import asyncio
-import anthropic
+from groq import AsyncGroq
 
-MODEL = "claude-sonnet-4-6"
+MODEL = "llama-3.3-70b-versatile"
 CHUNK_SIZE = 50
 
 SYSTEM_PROMPT = """<instructions>
@@ -51,7 +51,7 @@ No markdown, no explanation. Return ONLY the JSON array (may be empty []).
 
 class BOMMapperAgent:
     def __init__(self):
-        self.client = anthropic.AsyncAnthropic()
+        self.client = AsyncGroq()
 
     async def run(self, enriched_event: dict, bom: list[dict]) -> dict:
         print(f"\n[BOMMapper] Mapping {len(bom)} SKUs against tariff event")
@@ -98,18 +98,16 @@ class BOMMapperAgent:
             f"BOM Chunk {idx + 1} ({len(chunk)} SKUs):\n{json.dumps(chunk, indent=2)}"
         )
 
-        response = await self.client.messages.create(
+        response = await self.client.chat.completions.create(
             model=MODEL,
             max_tokens=4096,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
         )
 
-        text = ""
-        for block in response.content:
-            if hasattr(block, "text"):
-                text = block.text
-                break
+        text = response.choices[0].message.content or ""
 
         text = text.strip()
         if text.startswith("```"):
