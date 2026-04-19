@@ -59,6 +59,15 @@ class FedRegDocExtraction(BaseModel):
     rate_change_bps: Optional[int] = None  # e.g. 0% → 84% = 8400; negative = tariff cut
 
 
+class NewsExtraction(BaseModel):
+    """Structured metadata extracted from a news article/rumor."""
+    is_tariff_rumor: bool
+    description: str
+    hs_codes: list[str]
+    jurisdictions: list[str]
+    threat_level: str  # CRITICAL | HIGH | MEDIUM | LOW
+
+
 # ---------------------------------------------------------------------------
 # Prompt for Federal Register extraction
 # ---------------------------------------------------------------------------
@@ -87,6 +96,38 @@ Return ONLY valid JSON — no markdown, no explanation:
   "jurisdictions": ["CN"],
   "effective_date": "2026-05-01",
   "rate_change_bps": 8400
+}
+</output_format>"""
+
+
+# ---------------------------------------------------------------------------
+# Prompt for News/Rumor extraction
+# ---------------------------------------------------------------------------
+
+NEWS_EXTRACTION_SYSTEM_PROMPT = """<instructions>
+You are a US trade-law analyst reviewing live web news snippets for rumors or unpassed statements regarding new US tariffs and trade policy.
+Determine if the provided snippet actually discusses a rumor, unpassed proposal, or executive statement concerning incoming tariffs.
+If it is purely unrelated news, set "is_tariff_rumor" to false.
+Be aggressive in extracting potential HS codes or jurisdictions based on the products/countries mentioned.
+Assign a threat_level: CRITICAL, HIGH, MEDIUM, LOW based on credibility and potential impact.
+</instructions>
+
+<rules>
+- is_tariff_rumor: true if it discusses unpassed tariffs, proposed tariffs, or executive tariff threats. false otherwise.
+- description: concise 1-sentence summary of the rumor.
+- hs_codes: list of HS/HTS code strings inferred from the text (e.g. "8542" for semiconductors, "8703" for autos). Make an educated guess based on the product. Return [] if none.
+- jurisdictions: ISO-3166 two-letter country codes for the targeted countries (e.g. ["CN", "MX"]).
+- threat_level: CRITICAL, HIGH, MEDIUM, or LOW.
+</rules>
+
+<output_format>
+Return ONLY valid JSON — no markdown, no explanation:
+{
+  "is_tariff_rumor": true,
+  "description": "Executive threatens 25% tariff on all Mexican imported autos.",
+  "hs_codes": ["8703"],
+  "jurisdictions": ["MX"],
+  "threat_level": "HIGH"
 }
 </output_format>"""
 
@@ -376,6 +417,106 @@ class SignalMonitorAgent:
 
         # Pydantic validates field types and coerces where safe
         return FedRegDocExtraction(**raw)
+
+    # ------------------------------------------------------------------
+    # MODE 3: News Checker Polling
+    # ------------------------------------------------------------------
+
+    async def poll_news_sources(self, num_results: int = 5) -> list[dict]:
+        """Discover unpassed tariff rumors and executive statements using Tavily search.
+        
+        Uses Llama 3.3 to filter out noise and format the result into a TariffEvent structure.
+        """
+        print(f"\n[SignalMonitor] Polling News Sources via Tavily...")
+        
+        query = "latest US government proposed tariffs trade policy announcements statements"
+        # Using the base Tavily client to just hit the search endpoint
+        try:
+            results = await self._execute_tavily_search(query, count=num_results)
+        except Exception as e:
+            print(f"[SignalMonitor] Tavily search failed: {e}")
+            return []
+
+        if not results:
+            return []
+
+        extraction_tasks = [self._extract_news_metadata(doc) for doc in results]
+        extractions = await asyncio.gather(*extraction_tasks, return_exceptions=True)
+
+        events: list[dict] = []
+        for doc, extraction in zip(results, extractions):
+            if isinstance(extraction, Exception):
+                print(f"[SignalMonitor] News extraction failed for {doc.get('url')}: {extraction}")
+                continue
+
+            if not extraction.is_tariff_rumor:
+                continue
+
+            # We use the URL as the stable event_id
+            url = doc.get("url", "")
+            
+            event: dict = {
+                "event_id": url or f"tavily-news-{int(time.time())}",
+                "source": "tavily_news",
+                "published_at": datetime.now(timezone.utc).isoformat(),
+                "title": doc.get("title", "News Alert: Pending Tariff Policy"),
+                "url": url,
+                "hs_codes": extraction.hs_codes,
+                "jurisdictions": extraction.jurisdictions,
+                "rate_change_bps": None,
+                "effective_date": None,
+                "raw_excerpt": (doc.get("content", "") or "")[:2000],
+                "agencies": ["News/Rumor"],
+                "content_hash": hashlib.sha256((doc.get("title", "") + doc.get("content", "")).encode()).hexdigest() if doc.get("title") else "",
+                "description": extraction.description,
+                "threat_level": extraction.threat_level,
+            }
+            events.append(event)
+            print(f"[SignalMonitor] Extracted Rumor: {extraction.description} (Threat: {extraction.threat_level})")
+
+        print(f"[SignalMonitor] Returning {len(events)} rumor event(s) from News poll")
+        return events
+
+    async def _extract_news_metadata(self, doc: dict) -> NewsExtraction:
+        """Call Llama 3.3 70B to infer if a news snippet is a valid tariff rumor."""
+        user_content = (
+            f"News Title: {doc.get('title', '')}\n\n"
+            f"Snippet: {doc.get('content') or doc.get('abstract') or '(no snippet)'}"
+        )
+
+        started_at = datetime.now(timezone.utc).isoformat()
+        t0 = time.monotonic()
+
+        response = await self.client.chat.completions.create(
+            model=MODEL,
+            max_tokens=512,
+            messages=[
+                {"role": "system", "content": NEWS_EXTRACTION_SYSTEM_PROMPT},
+                {"role": "user", "content": user_content},
+            ],
+        )
+
+        latency_ms = int((time.monotonic() - t0) * 1000)
+        text = response.choices[0].message.content or ""
+
+        self._log_agent_run({
+            "agent_name": "signal_monitor",
+            "model": MODEL,
+            "input_payload": {
+                "source": "tavily_news_extraction",
+                "url": doc.get("url"),
+            },
+            "output_payload": {"raw_response": text[:500]},
+            "latency_ms": latency_ms,
+            "started_at": started_at,
+            "ended_at": datetime.now(timezone.utc).isoformat(),
+        })
+
+        raw = self._parse_json(text)
+        if raw is None:
+            raise ValueError(f"LLM returned unparseable JSON for news snippet: {text[:200]}")
+
+        return NewsExtraction(**raw)
 
     # ------------------------------------------------------------------
     # Audit logging

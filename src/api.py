@@ -251,7 +251,13 @@ def _normalize_row(r: dict, i: int, errors: list) -> dict:
 
 @app.get("/api/v1/boms")
 def list_boms(user_id: str = "demo"):
-    return store.list_boms(user_id=user_id)
+    boms = store.list_boms(user_id=user_id)
+    # Populate rows for Product Part Manager
+    enriched = []
+    for b in boms:
+        full_bom = store.get_bom(b["id"])
+        enriched.append(full_bom if full_bom else b)
+    return enriched
 
 
 @app.get("/api/v1/boms/{bom_id}")
@@ -440,7 +446,7 @@ async def stream_progress(rec_id: str):
 
 @app.post("/api/v1/internal/poll-signals")
 async def poll_signals(request: Request):
-    """Trigger Signal Monitor Federal Register poll. Requires Bearer INTERNAL_TOKEN."""
+    """Trigger Signal Monitor Federal Register poll AND News Checker. Requires Bearer INTERNAL_TOKEN."""
     auth = request.headers.get("Authorization", "")
     if not _INTERNAL_TOKEN or auth != f"Bearer {_INTERNAL_TOKEN}":
         raise HTTPException(401, "Unauthorized")
@@ -448,18 +454,32 @@ async def poll_signals(request: Request):
 
     agent = SignalMonitorAgent()
     try:
-        events, _ = await agent.poll_federal_register()
+        fed_task = agent.poll_federal_register()
+        news_task = agent.poll_news_sources(num_results=5)
+        fed_res, news_events = await asyncio.gather(fed_task, news_task, return_exceptions=True)
+        
+        events = []
+        if not isinstance(fed_res, Exception):
+            fed_events, _ = fed_res
+            events.extend(fed_events)
+        else:
+            print(f"[API] Error polling Federal Register: {fed_res}")
+
+        if not isinstance(news_events, Exception) and isinstance(news_events, list):
+            events.extend(news_events)
+        else:
+            print(f"[API] Error polling News: {news_events}")
+
     except Exception as e:
-        # Fallback if method not available
-        return {"status": "ok", "events_found": 0, "message": "poll_federal_register not available"}
+        return {"status": "error", "events_found": 0, "message": f"poll failed: {e}"}
 
     stored = []
     for ev in events:
         normalized = {
             "id": str(uuid.uuid4()),
-            "source": "federal_register",
+            "source": ev.get("source", "federal_register"),
             "title": ev.get("title", ""),
-            "description": ev.get("abstract", ev.get("raw_excerpt", "")),
+            "description": ev.get("description") or ev.get("abstract", ev.get("raw_excerpt", "")),
             "url": ev.get("url", ""),
             "hs_codes": ev.get("hs_codes", []),
             "jurisdictions": ev.get("jurisdictions", []),
@@ -467,9 +487,10 @@ async def poll_signals(request: Request):
             "published_at": ev.get("published_at", datetime.now(timezone.utc).isoformat()),
             "raw_excerpt": ev.get("raw_excerpt", ""),
             "content_hash": ev.get("content_hash") or hashlib.sha256(ev.get("title", "").encode()).hexdigest(),
-            "event_id": ev.get("document_number", str(uuid.uuid4())),
+            "event_id": ev.get("document_number") or ev.get("event_id") or str(uuid.uuid4()),
             "hs_codes_hint": ev.get("hs_codes", []),
             "affected_countries_hint": ev.get("jurisdictions", []),
+            "threat_level": ev.get("threat_level", "MEDIUM"),
         }
         stored.append(store.upsert_event(normalized))
 
@@ -488,33 +509,43 @@ def get_audit():
 @app.post("/api/v1/demo/seed")
 def seed_demo():
     """Seed the demo event + BOM from the existing sample data."""
-    from data.bom_loader import SAMPLE_BOM
+    from data.bom_loader import COFFEE_GRINDER_BOM, COFFEE_SHIRTS_BOM, COFFEE_BEANS_BOM
 
-    # Seed demo event
+    # Seed demo event for Coffee Shop
     demo_event = {
-        "id": "USTR-2026-04-SEMI-001",
-        "event_id": "USTR-2026-04-SEMI-001",
+        "id": "USTR-2026-06-COFFEE-001",
+        "event_id": "USTR-2026-06-COFFEE-001",
         "source": "manual",
-        "title": "Section 301 — Chinese Semiconductors 0% → 84%",
-        "description": "84% tariff on Chinese integrated circuits and advanced semiconductors under Section 301",
-        "url": "https://ustr.gov/tariff-actions/2026/section-301-semiconductors",
-        "hs_codes": ["8541", "8542", "8534"],
-        "jurisdictions": ["CN"],
-        "rate_change_hint": "0% → 84%",
-        "effective_date_hint": "2026-05-01",
-        "hs_codes_hint": ["8541", "8542", "8534"],
-        "affected_countries_hint": ["CN"],
-        "published_at": "2026-04-01T00:00:00Z",
-        "raw_excerpt": "USTR announces 84% Section 301 tariff on Chinese semiconductors effective May 1 2026",
-        "content_hash": "demo-seed-001",
+        "title": "Proposed 25% Tariff on Brazilian Coffee and Chinese Grinder Components",
+        "description": "Executive order drafted outlining a 25% tariff hike on unroasted Brazilian green coffee beans (0901) and Chinese steel grinding burrs (8208) effective next month.",
+        "url": "https://ustr.gov/tariff-actions/2026/section-301-coffee",
+        "hs_codes": ["0901", "8208"],
+        "jurisdictions": ["BR", "CN"],
+        "rate_change_hint": "0% → 25%",
+        "effective_date_hint": "2026-06-01",
+        "hs_codes_hint": ["0901.11", "8208.30"],
+        "affected_countries_hint": ["BR", "CN"],
+        "published_at": "2026-04-18T00:00:00Z",
+        "raw_excerpt": "USTR announces drafting phases of 25% tariff on imported green coffee from Brazil and stainless steel coffee processing machinery from China.",
+        "content_hash": "coffee-demo-seed-001",
     }
     store.upsert_event(demo_event)
 
-    # Seed demo BOM
-    if not store.list_boms():
-        bom = store.create_bom("Titan-X E-Bike Motor Controller")
-        store.add_bom_rows(bom["id"], SAMPLE_BOM)
-        return {"seeded": True, "event_id": demo_event["id"], "bom_id": bom["id"]}
-
+    # Always wipe and re-seed the Coffee Shop BOMs for a clean demo
     boms = store.list_boms()
+    for b in boms:
+        store.soft_delete_bom(b["id"])
+
+    if True:
+        grinder = store.create_bom("Precision Coffee Grinder")
+        store.add_bom_rows(grinder["id"], COFFEE_GRINDER_BOM)
+
+        shirts = store.create_bom("Barista Uniform Shirts")
+        store.add_bom_rows(shirts["id"], COFFEE_SHIRTS_BOM)
+
+        beans = store.create_bom("Single-Origin House Blend")
+        store.add_bom_rows(beans["id"], COFFEE_BEANS_BOM)
+        
+        return {"seeded": True, "event_id": demo_event["id"], "bom_id": grinder["id"]}
+
     return {"seeded": True, "event_id": demo_event["id"], "bom_id": boms[0]["id"]}
