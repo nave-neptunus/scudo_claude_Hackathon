@@ -10,11 +10,7 @@ def compile_business_context(user_id: str) -> str:
     Returns an empty string if no profile exists, so agents remain functional
     without a profile (e.g. during system-wide Signal Monitor polls).
     """
-    result = (
-        store._supabase_profile(user_id)
-        if hasattr(store, "_supabase_profile")
-        else _fetch_profile(user_id)
-    )
+    result = _fetch_profile(user_id)
     if not result:
         return ""
 
@@ -43,6 +39,12 @@ def compile_business_context(user_id: str) -> str:
 
 
 def _fetch_profile(user_id: str) -> dict | None:
+    """Fetch business profile from Supabase. Returns None if db is not configured."""
     from db.supabase_client import db
-    result = db.table("business_profiles").select("*").eq("id", user_id).execute()
-    return result.data[0] if result.data else None
+    if db is None:
+        return None
+    try:
+        result = db.table("business_profiles").select("*").eq("id", user_id).execute()
+        return result.data[0] if result.data else None
+    except Exception:
+        return None

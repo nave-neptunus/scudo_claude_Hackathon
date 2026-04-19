@@ -1,18 +1,11 @@
 from __future__ import annotations
 """API-mode pipeline: runs agents, streams progress, returns awaiting_approval."""
 
-import sys
 import json
 import asyncio
 import tempfile
 import traceback
 from datetime import datetime, timezone
-from pathlib import Path
-
-# Append agents path so it doesn't shadow backend/main.py at position 0
-_AGENTS_PATH = str(Path(__file__).parent.parent / "scudo_claude_Hackathon" / "tariffpilot")
-if _AGENTS_PATH not in sys.path:
-    sys.path.append(_AGENTS_PATH)
 
 from groq import AsyncGroq
 from agents.signal_monitor import SignalMonitorAgent

@@ -152,6 +152,8 @@ async def onboarding(
         "pdf_text": pdf_text,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
+    if _db is None:
+        raise HTTPException(503, "Supabase not configured — onboarding requires a database connection")
     _db.table("business_profiles").upsert(profile_row, on_conflict="id").execute()
 
     # Parse + store BOM CSV if provided
@@ -435,9 +437,6 @@ async def stream_progress(rec_id: str):
 @app.post("/api/v1/internal/poll-signals")
 async def poll_signals():
     """Trigger Signal Monitor Federal Register poll. Cron-gated in prod."""
-    import sys
-    from pathlib import Path
-    sys.path.insert(0, str(Path(__file__).parent.parent / "scudo_claude_Hackathon" / "tariffpilot"))
     from agents.signal_monitor import SignalMonitorAgent
 
     agent = SignalMonitorAgent()
@@ -482,9 +481,6 @@ def get_audit():
 @app.post("/api/v1/demo/seed")
 def seed_demo():
     """Seed the demo event + BOM from the existing sample data."""
-    import sys
-    from pathlib import Path
-    sys.path.insert(0, str(Path(__file__).parent.parent / "scudo_claude_Hackathon" / "tariffpilot"))
     from data.bom_loader import SAMPLE_BOM
 
     # Seed demo event

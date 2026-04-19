@@ -14,8 +14,12 @@ build/
 venv/
 
 # Output / runtime artifacts
-tariffpilot/output/
-tariffpilot/data/seen_document_numbers.json
+src/output/
+src/data/seen_document_numbers.json
+src/data/store.json
+
+# Legacy paths (pre-rename)
+tariffpilot/
 
 # Tooling
 .claire/
