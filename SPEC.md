@@ -34,6 +34,7 @@ TariffShield is a web application that protects small business importers from su
 **Model assignment rules:**
 - All agents use `llama-3.3-70b-versatile` (Llama 3.3 70B via Groq API).
 - Groq provides free, low-latency inference — no cost per token.
+- Every agent system prompt receives a `business_context` block compiled by `utils/context_builder.py::compile_business_context()` from the user's `business_profiles` row. This personalizes tariff alerts, scenario suggestions, and email drafts to the specific business.
 
 **Data sources by agent:**
 - Signal Monitor: Federal Register REST API (no key) + Tavily API (`TAVILY_API_KEY`)
@@ -214,6 +215,11 @@ TariffShield is composed of four top-level agents. Agents communicate exclusivel
 
 All endpoints are FastAPI routes hosted on Fly.io. Authentication uses Supabase JWTs forwarded in the `Authorization: Bearer <token>` header.
 
+### Onboarding
+| Method | Path | Description |
+|--------|------|-------------|
+| POST   | `/api/v1/onboarding` | Submit onboarding survey + upload BOM CSV and optional PDFs (multipart). Creates `business_profile` and initial BOM rows. Returns `{ business_profile_id, bom_id }`. |
+
 ### Auth & Profile
 | Method | Path | Description |
 |--------|------|-------------|
@@ -264,6 +270,22 @@ PostgreSQL via Supabase. Row-Level Security (RLS) is enabled on every user-scope
 | tone_preference | text | e.g. `formal`, `casual` |
 | created_at | timestamptz | default `now()` |
 
+### `business_profiles`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| user_id | uuid FK → users.id | unique — one profile per user |
+| industry | text | |
+| products_description | text | free-text from survey |
+| supplier_countries | text[] | ISO-3166 |
+| import_volume_usd | numeric(14,2) | monthly estimate |
+| existing_relationships | text nullable | |
+| tariff_concerns | text nullable | |
+| extracted_pdf_text | text nullable | pdfplumber output from uploaded docs |
+| created_at | timestamptz | default `now()` |
+
+RLS: `user_id = auth.uid()`. One row per user; upsert on re-submit.
+
 ### `boms`
 | Column | Type | Notes |
 |--------|------|-------|
@@ -286,6 +308,11 @@ PostgreSQL via Supabase. Row-Level Security (RLS) is enabled on every user-scope
 | annual_quantity | int | |
 | unit_cost_usd | numeric(12,2) | |
 | hs_code | text nullable | filled by BOM Mapper if missing |
+| annual_spend_usd | numeric(14,2) nullable | computed: `annual_quantity × unit_cost_usd` |
+| has_domestic_alt | boolean nullable | |
+| alt_supplier | text nullable | |
+| lead_time_weeks | int nullable | |
+| critical_path | boolean nullable | |
 
 ### `tariff_events`
 | Column | Type | Notes |
@@ -330,7 +357,11 @@ PostgreSQL via Supabase. Row-Level Security (RLS) is enabled on every user-scope
 | id | uuid PK | |
 | user_id | uuid FK | |
 | event_id | uuid FK | |
+| bom_id | uuid FK → boms.id | |
 | draft_email | jsonb | `{to, subject, body, scenario_ref}` |
+| ranked_scenarios | jsonb nullable | ordered scenario list after Orchestrator ranking |
+| enriched_event | jsonb nullable | full tariff event payload used during analysis |
+| bom_analysis | jsonb nullable | BOM Mapper exposure output used during analysis |
 | status | text | `awaiting_approval` \| `approved` \| `edited` \| `rejected` |
 | approved_at | timestamptz nullable | |
 | created_at | timestamptz | |

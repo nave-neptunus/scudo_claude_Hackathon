@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import asyncio
 from groq import AsyncGroq
+from utils.context_builder import compile_business_context
 
 MODEL = "llama-3.3-70b-versatile"
 
@@ -135,17 +136,19 @@ class ScenarioModelerAgent:
         self.strategy = strategy
         self.client = AsyncGroq()
 
-    async def run(self, enriched_event: dict, bom_analysis: dict) -> dict:
+    async def run(self, enriched_event: dict, bom_analysis: dict, user_id: str = "") -> dict:
         prompt = (
             f"Tariff Event:\n{json.dumps(enriched_event, indent=2)}\n\n"
             f"BOM Analysis:\n{json.dumps(bom_analysis, indent=2)}"
         )
+        biz = compile_business_context(user_id) if user_id else ""
+        system = f"{biz}\n\n{SCENARIO_SYSTEMS[self.strategy]}".strip() if biz else SCENARIO_SYSTEMS[self.strategy]
 
         response = await self.client.chat.completions.create(
             model=MODEL,
             max_tokens=4096,
             messages=[
-                {"role": "system", "content": SCENARIO_SYSTEMS[self.strategy]},
+                {"role": "system", "content": system},
                 {"role": "user", "content": prompt},
             ],
         )
@@ -186,7 +189,7 @@ class ScenarioModelerAgent:
         }
 
 
-async def run_parallel_scenarios(enriched_event: dict, bom_analysis: dict) -> list[dict]:
+async def run_parallel_scenarios(enriched_event: dict, bom_analysis: dict, user_id: str = "") -> list[dict]:
     """Run all 3 scenario agents simultaneously — core parallelism demo moment."""
     import time
     agents = [
@@ -199,7 +202,7 @@ async def run_parallel_scenarios(enriched_event: dict, bom_analysis: dict) -> li
     print(f"\n[ScenarioModeler] Spawning 3 parallel scenario agents at t=0.000s")
 
     results = await asyncio.gather(
-        *[agent.run(enriched_event, bom_analysis) for agent in agents],
+        *[agent.run(enriched_event, bom_analysis, user_id) for agent in agents],
         return_exceptions=True,
     )
 

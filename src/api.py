@@ -9,13 +9,15 @@ import uuid
 from datetime import datetime, timezone
 from typing import AsyncGenerator
 
-from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from store import store
+from db.supabase_store import store
+from db.supabase_client import db as _db
 from pipeline import run_pipeline
+from data.bom_loader import extract_pdf_text
 
 app = FastAPI(title="TariffShield API", version="1.0.0")
 
@@ -57,6 +59,7 @@ class RawEventIn(BaseModel):
 
 class AnalyzeRequest(BaseModel):
     bom_id: str
+    user_id: str = "demo"
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -94,6 +97,80 @@ def patch_me(body: UserPatch):
     if body.tone_preference is not None:
         _profile["tone_preference"] = body.tone_preference
     return _profile
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Onboarding
+# ────────────────────────────────────────────────────────────────────────────
+
+@app.post("/api/v1/onboarding")
+async def onboarding(
+    user_id: str = Form(...),
+    company_name: str = Form(""),
+    industry: str = Form(""),
+    products: str = Form(""),
+    supplier_countries: str = Form(""),   # JSON array string e.g. '["CN","MX"]'
+    monthly_import_usd: float = Form(0.0),
+    supplier_relationships: str = Form(""),
+    tariff_concern: str = Form(""),
+    tone_preference: str = Form("formal"),
+    bom_csv: UploadFile = File(None),
+    pdfs: list[UploadFile] = File(default=[]),
+):
+    """Submit onboarding survey + BOM CSV + optional PDFs.
+    Writes/upserts business_profiles row and creates a BOM if CSV provided.
+    Returns { business_profile_id, bom_id }.
+    """
+    # Parse supplier_countries from JSON array string
+    try:
+        countries = json.loads(supplier_countries) if supplier_countries else []
+    except Exception:
+        countries = [c.strip() for c in supplier_countries.split(",") if c.strip()]
+
+    # Extract PDF text
+    pdf_text_parts = []
+    for pdf_file in (pdfs or []):
+        if pdf_file and pdf_file.filename:
+            raw = await pdf_file.read()
+            try:
+                pdf_text_parts.append(extract_pdf_text(raw))
+            except Exception as e:
+                pdf_text_parts.append(f"[PDF extraction failed: {e}]")
+    pdf_text = "\n\n".join(pdf_text_parts) or None
+
+    # Upsert business_profiles
+    profile_row = {
+        "id": user_id,
+        "company_name": company_name or None,
+        "industry": industry or None,
+        "products": products or None,
+        "supplier_countries": countries,
+        "monthly_import_usd": monthly_import_usd or None,
+        "supplier_relationships": supplier_relationships or None,
+        "tariff_concern": tariff_concern or None,
+        "tone_preference": tone_preference,
+        "pdf_text": pdf_text,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    _db.table("business_profiles").upsert(profile_row, on_conflict="id").execute()
+
+    # Parse + store BOM CSV if provided
+    bom_id = None
+    if bom_csv and bom_csv.filename:
+        content = await bom_csv.read()
+        errors: list = []
+        rows = []
+        text = content.decode("utf-8-sig", errors="replace")
+        reader = csv.DictReader(io.StringIO(text))
+        for i, r in enumerate(reader):
+            rows.append(_normalize_row(dict(r), i, errors))
+        if rows:
+            bom_name = (bom_csv.filename or "bom").rsplit(".", 1)[0]
+            bom = store.create_bom(bom_name, user_id=user_id)
+            store.add_bom_rows(bom["id"], rows)
+            bom_id = bom["id"]
+
+    return {"business_profile_id": user_id, "bom_id": bom_id}
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -254,13 +331,13 @@ def analyze_event(event_id: str, body: AnalyzeRequest, background_tasks: Backgro
     if not bom:
         raise HTTPException(404, "BOM not found")
 
-    rec = store.create_recommendation(event_id, body.bom_id)
-    background_tasks.add_task(_run_bg, rec["id"], event_id, body.bom_id)
+    rec = store.create_recommendation(event_id, body.bom_id, user_id=body.user_id)
+    background_tasks.add_task(_run_bg, rec["id"], event_id, body.bom_id, body.user_id)
     return {"recommendation_id": rec["id"], "status": "running"}
 
 
-def _run_bg(rec_id: str, event_id: str, bom_id: str):
-    asyncio.run(run_pipeline(rec_id, event_id, bom_id))
+def _run_bg(rec_id: str, event_id: str, bom_id: str, user_id: str = ""):
+    asyncio.run(run_pipeline(rec_id, event_id, bom_id, user_id=user_id))
 
 
 @app.get("/api/v1/recommendations/{rec_id}")

@@ -507,10 +507,366 @@ function MapDashboard({ boms, events }) {
    APP ROOT
 ────────────────────────────────────────────────────────────────────────── */
 
-/* --- RESTORED COMPONENTS --- */
+/* ──────────────────────────────────────────────────────────────────────────
+   ONBOARDING / UPLOAD PAGE
+────────────────────────────────────────────────────────────────────────── */
 
+function UploadPage() {
+  const [step, setStep] = React.useState(0);
+  const [saving, setSaving] = React.useState(false);
+  const [done, setDone] = React.useState(null);
+  const [error, setError] = React.useState(null);
 
-/* --- RESTORED COMPONENTS --- */
+  // Survey fields
+  const [userId]                = React.useState(() => 'user-' + Math.random().toString(36).slice(2, 10));
+  const [companyName, setCompanyName] = React.useState('');
+  const [industry, setIndustry]       = React.useState('');
+  const [products, setProducts]       = React.useState('');
+  const [countries, setCountries]     = React.useState('');
+  const [importUsd, setImportUsd]     = React.useState('');
+  const [relationships, setRelationships] = React.useState('');
+  const [tariffConcern, setTariffConcern] = React.useState('');
+  const [tone, setTone]               = React.useState('formal');
+
+  // File refs
+  const [bomFile, setBomFile]   = React.useState(null);
+  const [pdfFiles, setPdfFiles] = React.useState([]);
+
+  const steps = ['Business Info', 'Supply Chain', 'Files'];
+
+  const fieldStyle = {
+    width:'100%', padding:'10px 12px', borderRadius:8,
+    border:'1px solid var(--border-1)', background:'var(--grey-025)',
+    fontSize:14, color:'var(--fg-1)', outline:'none',
+    fontFamily:'var(--font-sans)',
+  };
+  const labelStyle = { display:'block', marginBottom:6, fontWeight:500, color:'var(--fg-2)', fontSize:13 };
+  const fieldGroup = { marginBottom:20 };
+
+  async function submit() {
+    setSaving(true); setError(null);
+    try {
+      const fd = new FormData();
+      fd.append('user_id', userId);
+      fd.append('company_name', companyName);
+      fd.append('industry', industry);
+      fd.append('products', products);
+      fd.append('supplier_countries', JSON.stringify(
+        countries.split(',').map(c => c.trim()).filter(Boolean)
+      ));
+      fd.append('monthly_import_usd', importUsd || '0');
+      fd.append('supplier_relationships', relationships);
+      fd.append('tariff_concern', tariffConcern);
+      fd.append('tone_preference', tone);
+      if (bomFile) fd.append('bom_csv', bomFile);
+      for (const f of pdfFiles) fd.append('pdfs', f);
+
+      const r = await fetch(API + '/onboarding', { method: 'POST', body: fd });
+      if (!r.ok) throw new Error(await r.text());
+      const data = await r.json();
+      setDone(data);
+    } catch(e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (done) return (
+    <Glass style={{maxWidth:560, margin:'60px auto'}}>
+      <div style={{textAlign:'center', padding:'16px 0'}}>
+        <div style={{fontSize:40, marginBottom:16}}>✓</div>
+        <div className="h5" style={{marginBottom:8}}>Setup Complete</div>
+        <div className="body-sm" style={{marginBottom:20}}>
+          Profile saved. {done.bom_id ? `BOM uploaded (id: ${done.bom_id.slice(0,8)}…).` : 'No BOM uploaded.'}
+        </div>
+        <Btn onClick={()=>setDone(null)}>Start Over</Btn>
+      </div>
+    </Glass>
+  );
+
+  return (
+    <div style={{maxWidth:640, margin:'0 auto'}}>
+      <div className="h4" style={{marginBottom:4}}>Business Onboarding</div>
+      <div className="body-sm" style={{marginBottom:28}}>
+        Tell us about your business so TariffShield can personalise alerts and recommendations.
+      </div>
+
+      {/* Step tabs */}
+      <div style={{display:'flex', gap:8, marginBottom:28}}>
+        {steps.map((s, i) => (
+          <button key={i} onClick={()=>setStep(i)} style={{
+            padding:'6px 18px', borderRadius:999, border:'1px solid var(--border-1)',
+            background: step===i ? 'var(--accent)' : 'var(--grey-025)',
+            color: step===i ? '#fff' : 'var(--fg-2)',
+            fontWeight: step===i ? 600 : 400, cursor:'pointer', fontSize:13,
+          }}>{i+1}. {s}</button>
+        ))}
+      </div>
+
+      <Glass>
+        {/* Step 0 — Business Info */}
+        {step === 0 && (
+          <div>
+            <div style={fieldGroup}>
+              <label style={labelStyle}>Company name *</label>
+              <input style={fieldStyle} value={companyName} onChange={e=>setCompanyName(e.target.value)} placeholder="Acme Imports LLC" />
+            </div>
+            <div style={fieldGroup}>
+              <label style={labelStyle}>Industry *</label>
+              <input style={fieldStyle} value={industry} onChange={e=>setIndustry(e.target.value)} placeholder="e.g. Consumer Electronics, Auto Parts" />
+            </div>
+            <div style={fieldGroup}>
+              <label style={labelStyle}>Products / SKUs you import</label>
+              <textarea style={{...fieldStyle, minHeight:80, resize:'vertical'}}
+                value={products} onChange={e=>setProducts(e.target.value)}
+                placeholder="e.g. BLDC motors, lithium battery packs, PCBs" />
+            </div>
+            <div style={fieldGroup}>
+              <label style={labelStyle}>Preferred email tone</label>
+              <select style={fieldStyle} value={tone} onChange={e=>setTone(e.target.value)}>
+                <option value="formal">Formal</option>
+                <option value="casual">Casual</option>
+                <option value="assertive">Assertive</option>
+              </select>
+            </div>
+            <Btn onClick={()=>setStep(1)} disabled={!companyName || !industry}>Next →</Btn>
+          </div>
+        )}
+
+        {/* Step 1 — Supply Chain */}
+        {step === 1 && (
+          <div>
+            <div style={fieldGroup}>
+              <label style={labelStyle}>Supplier countries (comma-separated ISO codes)</label>
+              <input style={fieldStyle} value={countries} onChange={e=>setCountries(e.target.value)} placeholder="CN, TW, MX, VN" />
+            </div>
+            <div style={fieldGroup}>
+              <label style={labelStyle}>Monthly import volume (USD)</label>
+              <input style={fieldStyle} type="number" value={importUsd} onChange={e=>setImportUsd(e.target.value)} placeholder="500000" />
+            </div>
+            <div style={fieldGroup}>
+              <label style={labelStyle}>Existing supplier relationships</label>
+              <textarea style={{...fieldStyle, minHeight:72, resize:'vertical'}}
+                value={relationships} onChange={e=>setRelationships(e.target.value)}
+                placeholder="e.g. 5-year contract with Bafang, spot buyer at CATL" />
+            </div>
+            <div style={fieldGroup}>
+              <label style={labelStyle}>Biggest tariff concern</label>
+              <input style={fieldStyle} value={tariffConcern} onChange={e=>setTariffConcern(e.target.value)} placeholder="e.g. Section 301 China tariffs on HTS 8501" />
+            </div>
+            <div style={{display:'flex', gap:10}}>
+              <Btn variant="ghost" onClick={()=>setStep(0)}>← Back</Btn>
+              <Btn onClick={()=>setStep(2)}>Next →</Btn>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2 — Files */}
+        {step === 2 && (
+          <div>
+            <div style={fieldGroup}>
+              <label style={labelStyle}>BOM CSV upload</label>
+              <div style={{...fieldStyle, padding:'8px 12px', cursor:'pointer', color:'var(--fg-3)'}}>
+                <input type="file" accept=".csv,.tsv" style={{width:'100%'}}
+                  onChange={e=>setBomFile(e.target.files?.[0]||null)} />
+              </div>
+              <div className="body-sm" style={{marginTop:4}}>
+                Required columns: <code>sku_code, description, supplier_country, unit_cost_usd</code>
+              </div>
+              {bomFile && <div style={{marginTop:6, color:'var(--sev-low)', fontSize:13}}>✓ {bomFile.name}</div>}
+            </div>
+            <div style={fieldGroup}>
+              <label style={labelStyle}>Supporting PDFs (optional — supplier contracts, tariff rulings)</label>
+              <input type="file" accept=".pdf" multiple style={{...fieldStyle, padding:'8px 12px'}}
+                onChange={e=>setPdfFiles(Array.from(e.target.files||[]))} />
+              {pdfFiles.length > 0 && (
+                <div style={{marginTop:6, color:'var(--sev-low)', fontSize:13}}>
+                  ✓ {pdfFiles.map(f=>f.name).join(', ')}
+                </div>
+              )}
+            </div>
+            {error && (
+              <div style={{background:'var(--orange-050)', border:'1px solid var(--orange-300)',
+                borderRadius:8, padding:'10px 14px', marginBottom:16, color:'var(--sev-critical)', fontSize:13}}>
+                {error}
+              </div>
+            )}
+            <div style={{display:'flex', gap:10}}>
+              <Btn variant="ghost" onClick={()=>setStep(1)}>← Back</Btn>
+              <Btn onClick={submit} disabled={saving}>{saving ? 'Saving…' : 'Submit'}</Btn>
+            </div>
+          </div>
+        )}
+      </Glass>
+    </div>
+  );
+}
+
+function AuditPage() {
+  const [runs, setRuns] = React.useState([]);
+  React.useEffect(()=>{ api('GET','/audit').then(d=>setRuns(d||[])).catch(()=>{}); }, []);
+  return (
+    <div style={{maxWidth:900, margin:'0 auto'}}>
+      <div className="h4" style={{marginBottom:20}}>Agent Audit Log</div>
+      {runs.length === 0
+        ? <div className="body-sm">No agent runs recorded yet.</div>
+        : <Glass>
+            <table style={{fontSize:13}}>
+              <thead><tr style={{color:'var(--fg-3)'}}>
+                <th style={{textAlign:'left',padding:'6px 12px'}}>Agent</th>
+                <th style={{textAlign:'left',padding:'6px 12px'}}>Model</th>
+                <th style={{textAlign:'left',padding:'6px 12px'}}>Started</th>
+                <th style={{textAlign:'left',padding:'6px 12px'}}>Latency</th>
+              </tr></thead>
+              <tbody>{runs.map((r,i)=>(
+                <tr key={i} style={{borderTop:'1px solid var(--border-1)'}}>
+                  <td style={{padding:'8px 12px'}}>{r.agent_name}</td>
+                  <td style={{padding:'8px 12px', fontFamily:'var(--font-mono)', fontSize:12}}>{r.model}</td>
+                  <td style={{padding:'8px 12px', fontFamily:'var(--font-mono)', fontSize:12}}>{r.started_at?.slice(0,19)}</td>
+                  <td style={{padding:'8px 12px'}}>{r.latency_ms != null ? `${r.latency_ms}ms` : '—'}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </Glass>
+      }
+    </div>
+  );
+}
+
+function EventsPage({ setPage, setTargetRec }) {
+  const [events, setEvents] = React.useState([]);
+  const [boms, setBoms]     = React.useState([]);
+  React.useEffect(()=>{
+    api('GET','/events').then(d=>setEvents(d.events||[])).catch(()=>{});
+    api('GET','/boms').then(setBoms).catch(()=>{});
+  }, []);
+
+  async function analyze(ev) {
+    if (!boms.length) { alert('Upload a BOM first (Company tab).'); return; }
+    const r = await api('POST', `/events/${ev.id}/analyze`, { bom_id: boms[0].id });
+    setTargetRec(r.recommendation_id);
+    setPage('scenarios');
+  }
+
+  return (
+    <div style={{maxWidth:900, margin:'0 auto'}}>
+      <div className="h4" style={{marginBottom:20}}>Tariff Events</div>
+      {events.length === 0
+        ? <div className="body-sm">No events yet. Run the signal monitor poll.</div>
+        : <Glass>
+            <table style={{fontSize:13}}>
+              <thead><tr style={{color:'var(--fg-3)'}}>
+                <th style={{textAlign:'left',padding:'6px 12px'}}>Title</th>
+                <th style={{textAlign:'left',padding:'6px 12px'}}>Source</th>
+                <th style={{textAlign:'left',padding:'6px 12px'}}>HS Codes</th>
+                <th style={{padding:'6px 12px'}}></th>
+              </tr></thead>
+              <tbody>{events.map((ev,i)=>(
+                <tr key={i} style={{borderTop:'1px solid var(--border-1)'}}>
+                  <td style={{padding:'8px 12px', maxWidth:340, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{ev.title}</td>
+                  <td style={{padding:'8px 12px'}}><Chip bg="var(--grey-100)" fg="var(--fg-3)">{ev.source}</Chip></td>
+                  <td style={{padding:'8px 12px', fontFamily:'var(--font-mono)', fontSize:12}}>{(ev.hs_codes||[]).slice(0,3).join(', ')}</td>
+                  <td style={{padding:'8px 12px'}}><Btn small onClick={()=>analyze(ev)}>Analyze</Btn></td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </Glass>
+      }
+    </div>
+  );
+}
+
+function RecommendationsPage({ targetRec, setTargetRec, setPage }) {
+  const [rec, setRec] = React.useState(null);
+  const [loading, setLoading] = React.useState(false);
+  const [approving, setApproving] = React.useState(false);
+
+  React.useEffect(()=>{
+    if (!targetRec) return;
+    setLoading(true);
+    const poll = setInterval(()=>{
+      api('GET', `/recommendations/${targetRec}`).then(r=>{
+        setRec(r);
+        if (r.status !== 'running') { clearInterval(poll); setLoading(false); }
+      }).catch(()=>{ clearInterval(poll); setLoading(false); });
+    }, 2000);
+    return ()=>clearInterval(poll);
+  }, [targetRec]);
+
+  async function approve() {
+    setApproving(true);
+    try { await api('POST', `/recommendations/${targetRec}/approve`); api('GET', `/recommendations/${targetRec}`).then(setRec); }
+    catch(e) { alert(e.message); }
+    finally { setApproving(false); }
+  }
+
+  async function reject() {
+    await api('POST', `/recommendations/${targetRec}/reject`);
+    api('GET', `/recommendations/${targetRec}`).then(setRec);
+  }
+
+  if (!targetRec) return (
+    <div style={{maxWidth:700, margin:'0 auto'}}>
+      <div className="h4" style={{marginBottom:12}}>Recommendations</div>
+      <div className="body-sm">Select an event from the Events tab and click Analyze.</div>
+    </div>
+  );
+
+  if (loading && !rec) return (
+    <div style={{maxWidth:700, margin:'0 auto'}}>
+      <div className="h4" style={{marginBottom:20}}>Running Pipeline…</div>
+      <Glass><div className="body-sm" style={{padding:8}}>Agents running. This may take 20–60 seconds.</div></Glass>
+    </div>
+  );
+
+  if (!rec) return <div className="body-sm">No recommendation found.</div>;
+
+  const ranked = rec.ranked_scenarios || [];
+  const email  = rec.draft_email || {};
+
+  return (
+    <div style={{maxWidth:860, margin:'0 auto'}}>
+      <div style={{display:'flex', alignItems:'center', gap:12, marginBottom:20}}>
+        <div className="h4">Recommendation</div>
+        <StatusChip status={rec.status} />
+      </div>
+
+      {ranked.length > 0 && (
+        <Glass style={{marginBottom:20}}>
+          <div className="eyebrow" style={{marginBottom:12}}>Ranked Scenarios</div>
+          {ranked.map((s,i)=>(
+            <div key={i} style={{padding:'12px 0', borderTop: i?'1px solid var(--border-1)':undefined}}>
+              <div style={{display:'flex', alignItems:'center', gap:10, marginBottom:4}}>
+                <span style={{fontWeight:700, color:'var(--accent)', width:24}}>#{s.rank||i+1}</span>
+                <span style={{fontWeight:600, textTransform:'capitalize'}}>{(s.strategy||s.scenario_type||'').replace('_',' ')}</span>
+                <span className="body-sm">{s.recommendation_rationale}</span>
+              </div>
+              <div style={{paddingLeft:34, fontSize:12, color:'var(--fg-3)', fontFamily:'var(--font-mono)'}}>
+                Δcost ${(s.annual_cost_delta_usd||0).toLocaleString()} · lead_time {s.lead_time_months||'?'}mo · coverage {s.supplier_coverage_pct||'?'}%
+              </div>
+            </div>
+          ))}
+        </Glass>
+      )}
+
+      {email.subject && (
+        <Glass style={{marginBottom:20}}>
+          <div className="eyebrow" style={{marginBottom:12}}>Draft Email</div>
+          <div style={{marginBottom:6, fontWeight:600}}>{email.subject}</div>
+          <div style={{fontFamily:'var(--font-mono)', fontSize:12, whiteSpace:'pre-wrap', color:'var(--fg-2)', maxHeight:220, overflowY:'auto'}}>{email.body}</div>
+        </Glass>
+      )}
+
+      {rec.status === 'awaiting_approval' && (
+        <div style={{display:'flex', gap:12}}>
+          <Btn onClick={approve} disabled={approving}>{approving ? 'Approving…' : 'Approve & Send'}</Btn>
+          <Btn variant="ghost" onClick={reject}>Reject</Btn>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function App() {
   const [page, setPage]   = useState('dashboard');

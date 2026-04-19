@@ -1,6 +1,7 @@
 from __future__ import annotations
 """BOM loader — supports JSON and CSV. Ships with a 10-SKU sample."""
 
+import io
 import os
 import json
 import csv
@@ -126,3 +127,22 @@ def load_bom(path: str | None = None) -> list[dict]:
 
     print(f"[BOMLoader] Unsupported format: {p.suffix}, using sample BOM")
     return SAMPLE_BOM
+
+
+def extract_pdf_text(pdf_file: bytes | io.IOBase) -> str:
+    """Extract all text from a PDF file using pdfplumber. Returns concatenated page text."""
+    try:
+        import pdfplumber
+    except ImportError:
+        os.system("pip install pdfplumber -q")
+        import pdfplumber
+
+    if isinstance(pdf_file, (bytes, bytearray)):
+        pdf_file = io.BytesIO(pdf_file)
+
+    pages = []
+    with pdfplumber.open(pdf_file) as pdf:
+        for page in pdf.pages:
+            text = page.extract_text() or ""
+            pages.append(text)
+    return "\n".join(pages)

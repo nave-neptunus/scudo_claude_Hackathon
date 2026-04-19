@@ -18,8 +18,9 @@ from typing import Optional
 from groq import AsyncGroq
 from pydantic import BaseModel, ValidationError
 
-from tools.mcp_client import BraveMCPClient
+from tools.tavily_client import TavilyClient
 from tools.federal_register import FederalRegisterClient
+from utils.context_builder import compile_business_context
 
 MODEL = "llama-3.3-70b-versatile"
 
@@ -80,13 +81,13 @@ Return ONLY valid JSON — no markdown, no explanation:
 SYSTEM_PROMPT = """<instructions>
 You are a trade intelligence analyst specializing in tariff signal monitoring.
 Your job is to enrich raw tariff event signals with verified intelligence from web searches.
-You use a ReAct loop: reason about what you need to know, then call brave_search to find it,
+You use a ReAct loop: reason about what you need to know, then call tavily_search to find it,
 then reason again based on results, repeat until confidence is high enough.
 Stop when confidence_score >= 0.85 or after 3 search rounds.
 </instructions>
 
 <context>
-You have access to the brave_search tool which returns current web search results.
+You have access to the tavily_search tool which returns current web search results.
 Focus on: official government sources (USTR, Commerce, CBP, WTO), trade publications,
 and financial research. Cross-reference multiple sources before assigning high confidence.
 </context>
@@ -122,10 +123,10 @@ Return ONLY valid JSON with this exact structure:
 No markdown, no explanation, no code fences. Return ONLY the JSON object.
 </output_format>"""
 
-BRAVE_TOOL_DEF = {
+TAVILY_TOOL_DEF = {
     "type": "function",
     "function": {
-        "name": "brave_search",
+        "name": "tavily_search",
         "description": "Search the web for current tariff and trade policy information. Returns recent news and official government announcements.",
         "parameters": {
             "type": "object",
@@ -149,17 +150,19 @@ BRAVE_TOOL_DEF = {
 class SignalMonitorAgent:
     def __init__(self):
         self.client = AsyncGroq()
-        self.brave = BraveMCPClient()
+        self.tavily = TavilyClient()
         self.max_search_rounds = 3
 
     # ------------------------------------------------------------------
     # MODE 1: Brave Search ReAct enrichment
     # ------------------------------------------------------------------
 
-    async def run(self, raw_event: dict) -> dict:
+    async def run(self, raw_event: dict, user_id: str = "") -> dict:
         print(f"\n[SignalMonitor] Starting ReAct loop for event: {raw_event.get('event_id', 'unknown')}")
+        biz = compile_business_context(user_id) if user_id else ""
+        system = f"{biz}\n\n{SYSTEM_PROMPT}".strip() if biz else SYSTEM_PROMPT
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system},
             {
                 "role": "user",
                 "content": f"Enrich this tariff event signal:\n{json.dumps(raw_event, indent=2)}",
@@ -173,7 +176,7 @@ class SignalMonitorAgent:
             response = await self.client.chat.completions.create(
                 model=MODEL,
                 max_tokens=4096,
-                tools=[BRAVE_TOOL_DEF],
+                tools=[TAVILY_TOOL_DEF],
                 tool_choice="auto",
                 messages=messages,
             )
@@ -203,13 +206,13 @@ class SignalMonitorAgent:
                 })
 
                 for tc in msg.tool_calls:
-                    if tc.function.name == "brave_search":
+                    if tc.function.name == "tavily_search":
                         search_rounds += 1
                         args = json.loads(tc.function.arguments)
                         query = args.get("query", "")
                         count = args.get("count", 5)
                         print(f"[SignalMonitor] Round {search_rounds}: searching → {query!r}")
-                        results = await self._execute_brave_search(query, count)
+                        results = await self._execute_tavily_search(query, count)
                         messages.append({
                             "role": "tool",
                             "tool_call_id": tc.id,
@@ -375,8 +378,8 @@ class SignalMonitorAgent:
     # Shared helpers
     # ------------------------------------------------------------------
 
-    async def _execute_brave_search(self, query: str, count: int) -> list[dict]:
-        return await self.brave.search(query, count)
+    async def _execute_tavily_search(self, query: str, count: int) -> list[dict]:
+        return await self.tavily.search(query, count)
 
     def _parse_json(self, text: str) -> Optional[dict]:
         text = text.strip()

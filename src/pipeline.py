@@ -19,7 +19,7 @@ from agents.signal_monitor import SignalMonitorAgent
 from agents.bom_mapper import BOMMapperAgent
 from agents.scenario_modeler import run_parallel_scenarios
 from agents.hitl_gate import HITLGateAgent
-from store import store
+from db.supabase_store import store
 
 MODEL_PLANNER = "llama-3.3-70b-versatile"
 MODEL_BUILDER = "llama-3.3-70b-versatile"
@@ -179,7 +179,7 @@ No markdown. Return ONLY the JSON array.
 </output_format>"""
 
 
-async def run_pipeline(rec_id: str, event_id: str, bom_id: str):
+async def run_pipeline(rec_id: str, event_id: str, bom_id: str, user_id: str = ""):
     """Full pipeline run for API mode. Stores result; no interactive prompts."""
     store.init_progress(rec_id)
     started_at = datetime.now(timezone.utc).isoformat()
@@ -204,7 +204,7 @@ async def run_pipeline(rec_id: str, event_id: str, bom_id: str):
             "rec_id": rec_id, "agent_name": "signal_monitor", "model": MODEL_BUILDER,
             "input_payload": raw_event, "started_at": started_at,
         })
-        enriched_event = await SignalMonitorAgent().run(raw_event)
+        enriched_event = await SignalMonitorAgent().run(raw_event, user_id=user_id)
         _progress(rec_id, "signal_monitor", "done",
                   f"Confidence {enriched_event.get('confidence_score', '?')} · {len(enriched_event.get('hs_codes', []))} HS codes")
         store.log_agent_run({
@@ -214,7 +214,7 @@ async def run_pipeline(rec_id: str, event_id: str, bom_id: str):
 
         # ── Stage 2: BOM Mapper ─────────────────────────────────────────
         _progress(rec_id, "bom_mapper", "running", "Mapping SKUs to HS codes…")
-        bom_analysis = await BOMMapperAgent().run(enriched_event, bom_rows)
+        bom_analysis = await BOMMapperAgent().run(enriched_event, bom_rows, user_id=user_id)
         affected = len(bom_analysis.get("affected_skus", bom_analysis.get("sku_impacts", [])))
         exposure = bom_analysis.get("total_annual_tariff_impact_usd", 0)
         _progress(rec_id, "bom_mapper", "done",
@@ -227,7 +227,7 @@ async def run_pipeline(rec_id: str, event_id: str, bom_id: str):
 
         # ── Stage 3: Parallel Scenario Modeler ─────────────────────────
         _progress(rec_id, "scenario_modeler", "running", "Running 3 sub-agents in parallel…")
-        scenarios = await run_parallel_scenarios(enriched_event, bom_analysis)
+        scenarios = await run_parallel_scenarios(enriched_event, bom_analysis, user_id=user_id)
         _progress(rec_id, "scenario_modeler", "done", f"{len(scenarios)} scenarios ready")
 
         # ── Synthesize + Rank (Planner — opus-4-6) ─────────────────────

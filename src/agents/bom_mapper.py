@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import asyncio
 from groq import AsyncGroq
+from utils.context_builder import compile_business_context
 
 MODEL = "llama-3.3-70b-versatile"
 CHUNK_SIZE = 50
@@ -54,8 +55,9 @@ class BOMMapperAgent:
     def __init__(self):
         self.client = AsyncGroq()
 
-    async def run(self, enriched_event: dict, bom: list[dict]) -> dict:
+    async def run(self, enriched_event: dict, bom: list[dict], user_id: str = "") -> dict:
         print(f"\n[BOMMapper] Mapping {len(bom)} SKUs against tariff event")
+        self._biz_context = compile_business_context(user_id) if user_id else ""
         chunks = [bom[i:i + CHUNK_SIZE] for i in range(0, len(bom), CHUNK_SIZE)]
         print(f"[BOMMapper] Processing {len(chunks)} chunk(s) of ≤{CHUNK_SIZE} SKUs each")
 
@@ -103,7 +105,7 @@ class BOMMapperAgent:
             model=MODEL,
             max_tokens=4096,
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": f"{self._biz_context}\n\n{SYSTEM_PROMPT}".strip() if getattr(self, '_biz_context', '') else SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
             ],
         )

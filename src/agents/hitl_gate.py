@@ -8,6 +8,7 @@ import asyncio
 from datetime import datetime
 from pathlib import Path
 from groq import AsyncGroq
+from utils.context_builder import compile_business_context
 
 MODEL = "llama-3.3-70b-versatile"
 
@@ -59,7 +60,9 @@ class HITLGateAgent:
         bom_analysis: dict,
         scenarios: list[dict],
         ranked_scenarios: list[dict],
+        user_id: str = "",
     ) -> dict:
+        self._biz_context = compile_business_context(user_id) if user_id else ""
         print("\n" + "=" * 70)
         print("  TARIFFPILOT — HUMAN-IN-THE-LOOP AUTHORIZATION GATE")
         print("=" * 70)
@@ -171,7 +174,7 @@ class HITLGateAgent:
             model=MODEL,
             max_tokens=4096,
             messages=[
-                {"role": "system", "content": EMAIL_SYSTEM},
+                {"role": "system", "content": f"{self._biz_context}\n\n{EMAIL_SYSTEM}".strip() if getattr(self, '_biz_context', '') else EMAIL_SYSTEM},
                 {"role": "user", "content": prompt},
             ],
         )
