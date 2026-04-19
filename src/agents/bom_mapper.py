@@ -12,6 +12,15 @@ from utils.context_builder import compile_business_context
 MODEL = "llama-3.3-70b-versatile"
 CHUNK_SIZE = 50
 
+
+class BOMAnalysis(BaseModel):
+    """Validated output of BOMMapperAgent.run() — SPEC §3.2."""
+    affected_skus: list[dict] = []
+    total_annual_tariff_impact_usd: float = 0.0
+    affected_sku_count: int = 0
+    total_sku_count: int = 0
+    severity_breakdown: dict = {}
+
 SYSTEM_PROMPT = """<instructions>
 You are a supply chain cost analyst. Given a tariff event and a chunk of BOM SKUs,
 identify which SKUs are affected and calculate the financial impact.
@@ -101,18 +110,18 @@ class BOMMapperAgent:
 
         print(f"[BOMMapper] Found {len(affected)} affected SKUs, total impact: ${total_impact:,.0f}/yr")
 
-        return {
-            "affected_skus": affected,
-            "total_annual_tariff_impact_usd": total_impact,
-            "affected_sku_count": len(affected),
-            "total_sku_count": len(bom),
-            "severity_breakdown": {
+        return BOMAnalysis(
+            affected_skus=affected,
+            total_annual_tariff_impact_usd=total_impact,
+            affected_sku_count=len(affected),
+            total_sku_count=len(bom),
+            severity_breakdown={
                 "CRITICAL": critical_count,
                 "HIGH": high_count,
                 "MEDIUM": sum(1 for s in affected if s.get("severity") == "MEDIUM"),
                 "LOW": sum(1 for s in affected if s.get("severity") == "LOW"),
             },
-        }
+        ).model_dump()
 
     async def _process_chunk(self, event: dict, chunk: list[dict], idx: int) -> list[dict]:
         prompt = (

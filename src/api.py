@@ -3,13 +3,15 @@ from __future__ import annotations
 
 import asyncio
 import csv
+import hashlib
 import io
 import json
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import AsyncGenerator
 
-from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -18,6 +20,8 @@ from db.supabase_store import store
 from db.supabase_client import db as _db
 from pipeline import run_pipeline
 from data.bom_loader import extract_pdf_text
+
+_INTERNAL_TOKEN = os.getenv("INTERNAL_TOKEN", "")
 
 app = FastAPI(title="TariffShield API", version="1.0.0")
 
@@ -246,8 +250,8 @@ def _normalize_row(r: dict, i: int, errors: list) -> dict:
 
 
 @app.get("/api/v1/boms")
-def list_boms():
-    return store.list_boms()
+def list_boms(user_id: str = "demo"):
+    return store.list_boms(user_id=user_id)
 
 
 @app.get("/api/v1/boms/{bom_id}")
@@ -271,8 +275,9 @@ def delete_bom(bom_id: str):
 @app.post("/api/v1/events")
 def create_event(body: RawEventIn):
     """Manually submit a tariff event (for demo / testing)."""
+    event_id = body.event_id or str(uuid.uuid4())
     event = {
-        "id": body.event_id or str(uuid.uuid4()),
+        "id": event_id,
         "source": body.source,
         "title": body.title,
         "description": body.description,
@@ -283,9 +288,9 @@ def create_event(body: RawEventIn):
         "effective_date_hint": body.effective_date_hint,
         "published_at": datetime.now(timezone.utc).isoformat(),
         "raw_excerpt": body.description,
-        "content_hash": str(hash(body.title + body.description)),
+        "content_hash": hashlib.sha256((body.title + body.description).encode()).hexdigest(),
         # keep raw fields for orchestrator
-        "event_id": body.event_id or str(uuid.uuid4()),
+        "event_id": event_id,
         "hs_codes_hint": body.hs_codes_hint,
         "affected_countries_hint": body.affected_countries_hint,
         "rate_change_hint": body.rate_change_hint,
@@ -350,8 +355,8 @@ def get_recommendation(rec_id: str):
 
 
 @app.get("/api/v1/recommendations")
-def list_recommendations():
-    return store.list_recommendations()
+def list_recommendations(user_id: str = "demo"):
+    return store.list_recommendations(user_id=user_id)
 
 
 @app.patch("/api/v1/recommendations/{rec_id}/email")
@@ -434,8 +439,11 @@ async def stream_progress(rec_id: str):
 # ────────────────────────────────────────────────────────────────────────────
 
 @app.post("/api/v1/internal/poll-signals")
-async def poll_signals():
-    """Trigger Signal Monitor Federal Register poll. Cron-gated in prod."""
+async def poll_signals(request: Request):
+    """Trigger Signal Monitor Federal Register poll. Requires Bearer INTERNAL_TOKEN."""
+    auth = request.headers.get("Authorization", "")
+    if not _INTERNAL_TOKEN or auth != f"Bearer {_INTERNAL_TOKEN}":
+        raise HTTPException(401, "Unauthorized")
     from agents.signal_monitor import SignalMonitorAgent
 
     agent = SignalMonitorAgent()
@@ -458,7 +466,7 @@ async def poll_signals():
             "rate_change_bps": ev.get("rate_change_bps"),
             "published_at": ev.get("published_at", datetime.now(timezone.utc).isoformat()),
             "raw_excerpt": ev.get("raw_excerpt", ""),
-            "content_hash": ev.get("content_hash", str(hash(ev.get("title", "")))),
+            "content_hash": ev.get("content_hash") or hashlib.sha256(ev.get("title", "").encode()).hexdigest(),
             "event_id": ev.get("document_number", str(uuid.uuid4())),
             "hs_codes_hint": ev.get("hs_codes", []),
             "affected_countries_hint": ev.get("jurisdictions", []),

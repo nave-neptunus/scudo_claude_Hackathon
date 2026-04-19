@@ -62,19 +62,19 @@ class OrchestratorAgent:
         # Stage 1: Signal Monitor
         enriched_event = await self._run_stage(
             "SignalMonitor",
-            SignalMonitorAgent().run(raw_event),
+            lambda: SignalMonitorAgent().run(raw_event),
         )
 
         # Stage 2: BOM Mapper
         bom_analysis = await self._run_stage(
             "BOMMapper",
-            BOMMapperAgent().run(enriched_event, bom),
+            lambda: BOMMapperAgent().run(enriched_event, bom),
         )
 
         # Stage 3: Parallel Scenario Modelers
         scenarios = await self._run_stage(
             "ScenarioModeler[3× parallel]",
-            run_parallel_scenarios(enriched_event, bom_analysis),
+            lambda: run_parallel_scenarios(enriched_event, bom_analysis),
         )
 
         # Synthesize + rank scenarios
@@ -84,7 +84,7 @@ class OrchestratorAgent:
         hitl = HITLGateAgent(demo_mode=self.demo_mode)
         package = await self._run_stage(
             "HITLGate",
-            hitl.run(enriched_event, bom_analysis, scenarios, ranked_scenarios),
+            lambda: hitl.run(enriched_event, bom_analysis, scenarios, ranked_scenarios),
         )
 
         result = {
@@ -109,13 +109,13 @@ class OrchestratorAgent:
 
         return result
 
-    async def _run_stage(self, name: str, coro, retries: int = 1):
+    async def _run_stage(self, name: str, factory, retries: int = 1):
         started_at = datetime.utcnow().isoformat()
         print(f"\n[Orchestrator] ▶ Starting {name}  ({started_at})")
 
         for attempt in range(retries + 1):
             try:
-                result = await coro
+                result = await factory()
                 completed_at = datetime.utcnow().isoformat()
                 self.audit_trail.append({
                     "stage": name,

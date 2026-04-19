@@ -150,6 +150,10 @@ class LocalStore:
             runs = [r for r in runs if r.get("user_id") == user_id]
         return list(reversed(runs))[-100:]
 
+    def get_profile(self, user_id: str) -> dict | None:
+        profiles = self._state.get("business_profiles", {})
+        return profiles.get(user_id)
+
     # Pipeline Progress (ephemeral)
     def init_progress(self, rec_id: str):
         self._progress[rec_id] = []
@@ -296,6 +300,9 @@ class SupabaseStore:
     def get_business_profile(self, user_id: str) -> dict | None:
         result = db.table("business_profiles").select("*").eq("id", user_id).execute()
         return result.data[0] if result.data else None
+
+    def get_profile(self, user_id: str) -> dict | None:
+        return self.get_business_profile(user_id)
 
     def init_progress(self, rec_id: str):
         self._progress[rec_id] = []

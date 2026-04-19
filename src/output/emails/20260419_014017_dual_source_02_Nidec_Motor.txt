@@ -1,0 +1,9 @@
+TO: Nidec Motor
+SUBJECT: Strategic Supply Partnership — Re-routing Request [EB-MTR-01]
+PRIORITY: HIGH
+SKU REFS: EB-MTR-01
+GENERATED: 2026-04-19T01:40:17.970828Z
+
+--------------------------------------------------
+
+Dear Nidec Motor Team, we are writing to notify you of our strategic decision to shift 65% of the sourcing for SKU EB-MTR-01 to your company, as part of our dual-source strategy. This decision is driven by the recent tariff event USTR-2026-04-SEMI-001, which imposes an 84% tariff on Chinese integrated circuits and advanced semiconductors. We expect this change to reduce our annual tariff impact by $770,000. We kindly request that you qualify for this new volume within the next 6 weeks. Please respond to this email within 5 business days to confirm your ability to meet this timeline. We look forward to continuing our partnership and working together to ensure a seamless transition.

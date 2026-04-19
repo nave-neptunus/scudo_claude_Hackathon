@@ -1,0 +1,9 @@
+TO: Hitachi Metals
+SUBJECT: Strategic Supply Partnership — Re-routing Request [EB-MAG-04]
+PRIORITY: HIGH
+SKU REFS: EB-MAG-04
+GENERATED: 2026-04-19T01:40:17.971348Z
+
+--------------------------------------------------
+
+Dear Hitachi Metals Team, we are writing to notify you of our strategic decision to maintain a China-dominant sourcing strategy for SKU EB-MAG-04, with 35% exempt sourcing, as part of our dual-source strategy. This decision is driven by the recent tariff event USTR-2026-04-SEMI-001, which imposes an 84% tariff on Chinese integrated circuits and advanced semiconductors. We expect this change to reduce our annual tariff impact by $408,000. We kindly request that you qualify for this new volume within the next 6 weeks. Please respond to this email within 5 business days to confirm your ability to meet this timeline. We look forward to continuing our partnership and working together to ensure a seamless transition.

@@ -54,20 +54,31 @@ TariffShield is composed of four top-level agents. Agents communicate exclusivel
 - **Federal Register REST API** — `GET https://www.federalregister.gov/api/v1/documents?conditions[term]=tariff` (polled; no API key required). Supersedes the RSS feed; provides structured `document_number`, `abstract`, `effective_on`, and `agencies` fields.
 - **Tavily API** — web search queries scoped to tariff-related terms and jurisdictions (supplemental signal source; requires `TAVILY_API_KEY`).
 
-**Outputs (JSON):**
+**Outputs — Pydantic model `EnrichedEvent`:**
 ```json
 {
   "event_id": "uuid",
-  "source": "federal_register | brave_search",
+  "source": "federal_register | tavily",
   "published_at": "ISO-8601",
   "title": "string",
   "url": "string",
   "hs_codes": ["string"],
   "jurisdictions": ["ISO-3166 country codes"],
   "rate_change_bps": "int | null",
-  "raw_excerpt": "string"
+  "raw_excerpt": "string",
+  "old_rate_pct": "float",
+  "new_rate_pct": "float",
+  "rate_delta_pct": "float",
+  "affected_countries": ["ISO-3166"],
+  "effective_date": "YYYY-MM-DD | null",
+  "threat_level": "CRITICAL | HIGH | MEDIUM | LOW",
+  "confidence_score": "float 0.0–1.0",
+  "key_facts": ["string"],
+  "sources": ["url"]
 }
 ```
+
+Every `SignalMonitorAgent.run()` return value MUST be validated with `EnrichedEvent(**result)` before being passed downstream.
 
 **Responsibilities:**
 - Deduplicate by `document_number` (Federal Register canonical ID) + `content_hash`.
@@ -82,12 +93,12 @@ TariffShield is composed of four top-level agents. Agents communicate exclusivel
 - User BOM rows from Supabase.
 - One `tariff_event` JSON.
 
-**Outputs (JSON):**
+**Outputs — Pydantic model `BOMAnalysis`:**
 ```json
 {
   "user_id": "uuid",
   "event_id": "uuid",
-  "exposed_skus": [
+  "affected_skus": [
     {
       "sku_id": "uuid",
       "sku_code": "string",
@@ -97,9 +108,12 @@ TariffShield is composed of four top-level agents. Agents communicate exclusivel
       "annual_spend_usd": 0.0,
       "matched_hs_code": "string"
     }
-  ]
+  ],
+  "total_annual_tariff_impact_usd": 0.0
 }
 ```
+
+Every `BOMMapperAgent.run()` return value MUST be validated with `BOMAnalysis(**result)` before being passed downstream.
 
 **Responsibilities:**
 - Normalize and validate BOM rows on upload.
@@ -391,6 +405,7 @@ RLS: `user_id = auth.uid()`. One row per user; upsert on re-submit.
 | `SUPABASE_SERVICE_ROLE_KEY` | Backend | Bypasses RLS for Signal Monitor poller only |
 | `TAVILY_API_KEY` | Backend — Signal Monitor | Tavily web search |
 | `CENSUS_API_KEY` | Backend — BOM Mapper | Census Bureau Schedule B API |
+| `INTERNAL_TOKEN` | Backend — `/api/v1/internal/poll-signals` | Shared secret for cron-triggered internal endpoint; required header: `Authorization: Bearer $INTERNAL_TOKEN` |
 
 No other external API keys are required. Federal Register API and USITC HTS API are unauthenticated.
 

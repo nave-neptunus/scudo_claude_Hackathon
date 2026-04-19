@@ -34,6 +34,23 @@ _AGENT_RUNS_LOG = Path("output/agent_runs.jsonl")
 # Pydantic model for LLM extraction output (validates before use)
 # ---------------------------------------------------------------------------
 
+class EnrichedEvent(BaseModel):
+    """Validated output of SignalMonitorAgent.run() — SPEC §3.1."""
+    event_id: str
+    description: str = ""
+    hs_codes: list[str] = []
+    old_rate_pct: float = 0.0
+    new_rate_pct: float = 0.0
+    rate_delta_pct: float = 0.0
+    affected_countries: list[str] = []
+    effective_date: Optional[str] = None
+    threat_level: str = "MEDIUM"
+    confidence_score: float = 0.0
+    search_rounds_used: int = 0
+    key_facts: list[str] = []
+    sources: list[str] = []
+
+
 class FedRegDocExtraction(BaseModel):
     """Structured metadata extracted from a Federal Register document."""
     hs_codes: list[str]
@@ -238,7 +255,7 @@ class SignalMonitorAgent:
             final_result = self._fallback(raw_event, search_rounds)
 
         print(f"[SignalMonitor] Done. Confidence: {final_result.get('confidence_score', 0):.2f}, rounds: {final_result.get('search_rounds_used', 0)}")
-        return final_result
+        return EnrichedEvent(**{k: v for k, v in final_result.items() if k in EnrichedEvent.model_fields}).model_dump()
 
     # ------------------------------------------------------------------
     # MODE 2: Federal Register polling

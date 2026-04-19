@@ -1,0 +1,417 @@
+{
+  "run_id": "20260419_013818",
+  "raw_event": {
+    "event_id": "USTR-2026-04-SEMI-001",
+    "description": "84% tariff on Chinese integrated circuits and advanced semiconductors under Section 301",
+    "hs_codes_hint": [
+      "8541",
+      "8542",
+      "8534"
+    ],
+    "affected_countries_hint": [
+      "China"
+    ],
+    "rate_change_hint": "0% \u2192 84%",
+    "effective_date_hint": "2026-05-01"
+  },
+  "enriched_event": {
+    "event_id": "USTR-2026-04-SEMI-001",
+    "description": "84% tariff on Chinese integrated circuits and advanced semiconductors under Section 301",
+    "hs_codes": [
+      "8541.49.95",
+      "8541.90.00",
+      "8542.31.00",
+      "8542.39.00"
+    ],
+    "old_rate_pct": 0.0,
+    "new_rate_pct": 84.0,
+    "rate_delta_pct": 84.0,
+    "affected_countries": [
+      "China"
+    ],
+    "effective_date": "2026-05-01",
+    "threat_level": "CRITICAL",
+    "confidence_score": 0.92,
+    "search_rounds_used": 3,
+    "key_facts": [
+      "Semiconductors from China are subject to an additional tariff under Section 301",
+      "The tariff action will use the same Harmonized Tariff Schedule (HTS) number as the Section 301 China 50% ad valorem rate",
+      "The new higher tariffs will be in addition to the existing 50% Section 301 China tariffs related to forced technology transfer"
+    ],
+    "sources": [
+      "https://www.strtrade.com/trade-news-resources/tariff-actions-resources/301-tariffs-china-semiconductors",
+      "https://www.nnrglobal.com/insight/new-section-301-tariffs-on-chinese-semiconductors/",
+      "https://geodis.com/us-en/resources/customs-corner/us-trade-representative-announces-new-section-301-tariff-action-chinese"
+    ]
+  },
+  "bom_analysis": {
+    "affected_skus": [
+      {
+        "sku": "EB-BAT-03",
+        "description": "18650 Lithium-Ion Battery Array - 48V 15Ah",
+        "hs_code": "8507.60.00",
+        "supplier": "Sunwoda Electronic",
+        "supplier_country": "China",
+        "annual_spend_usd": 3600000,
+        "annual_tariff_impact_usd": 3024000,
+        "severity": "CRITICAL",
+        "match_level": "4-digit",
+        "has_domestic_alt": false,
+        "alt_supplier": null,
+        "lead_time_weeks": 14,
+        "critical_path": true
+      },
+      {
+        "sku": "EB-MTR-01",
+        "description": "BLDC Hub Motor Assembly - 1000W",
+        "hs_code": "8501.32.45",
+        "supplier": "Bafang Electric",
+        "supplier_country": "China",
+        "annual_spend_usd": 2775000,
+        "annual_tariff_impact_usd": 2325000,
+        "severity": "CRITICAL",
+        "match_level": "2-digit",
+        "has_domestic_alt": false,
+        "alt_supplier": null,
+        "lead_time_weeks": 10,
+        "critical_path": true
+      },
+      {
+        "sku": "EB-MAG-04",
+        "description": "Sintered Neodymium Permanent Magnets (NdFeB)",
+        "hs_code": "8505.11.00",
+        "supplier": "JL MAG Rare-Earth",
+        "supplier_country": "China",
+        "annual_spend_usd": 1350000,
+        "annual_tariff_impact_usd": 1134000,
+        "severity": "CRITICAL",
+        "match_level": "4-digit",
+        "has_domestic_alt": false,
+        "alt_supplier": null,
+        "lead_time_weeks": 8,
+        "critical_path": true
+      }
+    ],
+    "total_annual_tariff_impact_usd": 6483000,
+    "affected_sku_count": 3,
+    "total_sku_count": 5,
+    "severity_breakdown": {
+      "CRITICAL": 3,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0
+    }
+  },
+  "scenarios": [
+    {
+      "strategy": "reshore",
+      "annual_cost_delta_usd": 0.0,
+      "lead_time_months": 0,
+      "supplier_coverage_pct": 0.0,
+      "risk_score": 0.0,
+      "confidence": 0.0,
+      "top_sku_actions": [],
+      "pros": [],
+      "cons": [
+        "No domestic alternatives available for affected SKUs"
+      ],
+      "summary": "Reshoring is not feasible due to lack of domestic alternatives for critical SKUs. The affected SKUs do not have domestic alternatives, making it impossible to reshore production without significant investment in new supplier development."
+    },
+    {
+      "strategy": "nearshore",
+      "annual_cost_delta_usd": -2164500.0,
+      "lead_time_months": 12,
+      "supplier_coverage_pct": 100.0,
+      "risk_score": 0.6,
+      "confidence": 0.9,
+      "top_sku_actions": [
+        {
+          "sku": "EB-BAT-03",
+          "action": "requalify with Mexican supplier",
+          "new_supplier": "Sunwoda Mexico",
+          "cost_delta_usd": -1209600.0
+        },
+        {
+          "sku": "EB-MTR-01",
+          "action": "requalify with Canadian supplier",
+          "new_supplier": "Nidec Canada",
+          "cost_delta_usd": -601200.0
+        },
+        {
+          "sku": "EB-MAG-04",
+          "action": "requalify with Mexican supplier",
+          "new_supplier": "JL MAG Mexico",
+          "cost_delta_usd": -553700.0
+        }
+      ],
+      "pros": [
+        "Mitigate tariff risk by 84%",
+        "Diversify supply chain and reduce dependence on Chinese suppliers",
+        "Leverage nearshore production capabilities in Mexico and Canada"
+      ],
+      "cons": [
+        "Higher labor costs in Mexico and Canada compared to China",
+        "Increased logistics costs due to cross-border shipping",
+        "Qualification and testing requirements for new suppliers"
+      ],
+      "summary": "The nearshore strategy offers a viable solution to mitigate the 84% tariff on Chinese integrated circuits and advanced semiconductors, with a potential annual cost savings of $2,164,500. The plan involves requalifying with Mexican and Canadian suppliers, leveraging existing maquiladora networks in Mexico and supplier networks in Canada."
+    },
+    {
+      "strategy": "dual_source",
+      "annual_cost_delta_usd": -2178000.0,
+      "lead_time_months": 9,
+      "supplier_coverage_pct": 85.0,
+      "risk_score": 60.0,
+      "confidence": 0.85,
+      "split_ratio": {
+        "exempt_pct": 65,
+        "china_pct": 35
+      },
+      "top_sku_actions": [
+        {
+          "sku": "EB-BAT-03",
+          "action": "shift to 65% exempt sourcing",
+          "new_supplier": "LG Chem",
+          "cost_delta_usd": -950000.0
+        },
+        {
+          "sku": "EB-MTR-01",
+          "action": "shift to 65% exempt sourcing",
+          "new_supplier": "Nidec Motor",
+          "cost_delta_usd": -770000.0
+        },
+        {
+          "sku": "EB-MAG-04",
+          "action": "remain China-dominant with 35% exempt sourcing",
+          "new_supplier": "Hitachi Metals",
+          "cost_delta_usd": -408000.0
+        }
+      ],
+      "pros": [
+        "reduced tariff exposure",
+        "improved supply chain resilience",
+        "better pricing through dual sourcing"
+      ],
+      "cons": [
+        "increased overhead costs",
+        "potential lead time delays",
+        "supplier management complexities"
+      ],
+      "summary": "Implementing a dual-source strategy with a 65/35 split ratio can reduce annual tariff impact by $2.18 million, while maintaining a competitive supply chain. Top SKUs will be shifted to 65% exempt sourcing, with EB-MAG-04 remaining China-dominant. This approach balances cost and risk, ensuring a more resilient supply chain."
+    }
+  ],
+  "ranked_scenarios": [
+    {
+      "strategy": "dual_source",
+      "annual_cost_delta_usd": -2178000.0,
+      "lead_time_months": 9,
+      "supplier_coverage_pct": 85.0,
+      "risk_score": 0.6,
+      "confidence": 0.85,
+      "split_ratio": {
+        "exempt_pct": 65,
+        "china_pct": 35
+      },
+      "top_sku_actions": [
+        {
+          "sku": "EB-BAT-03",
+          "action": "shift to 65% exempt sourcing",
+          "new_supplier": "LG Chem",
+          "cost_delta_usd": -950000.0
+        },
+        {
+          "sku": "EB-MTR-01",
+          "action": "shift to 65% exempt sourcing",
+          "new_supplier": "Nidec Motor",
+          "cost_delta_usd": -770000.0
+        },
+        {
+          "sku": "EB-MAG-04",
+          "action": "remain China-dominant with 35% exempt sourcing",
+          "new_supplier": "Hitachi Metals",
+          "cost_delta_usd": -408000.0
+        }
+      ],
+      "pros": [
+        "reduced tariff exposure",
+        "improved supply chain resilience",
+        "better pricing through dual sourcing"
+      ],
+      "cons": [
+        "increased overhead costs",
+        "potential lead time delays",
+        "supplier management complexities"
+      ],
+      "summary": "Implementing a dual-source strategy with a 65/35 split ratio can reduce annual tariff impact by $2.18 million, while maintaining a competitive supply chain. Top SKUs will be shifted to 65% exempt sourcing, with EB-MAG-04 remaining China-dominant. This approach balances cost and risk, ensuring a more resilient supply chain.",
+      "rank": 1,
+      "recommendation_rationale": "The dual-source strategy offers the best balance of cost and risk, with the highest annual cost savings and a relatively low risk score. The 65/35 split ratio provides a competitive supply chain while reducing tariff exposure."
+    },
+    {
+      "strategy": "nearshore",
+      "annual_cost_delta_usd": -2164500.0,
+      "lead_time_months": 12,
+      "supplier_coverage_pct": 100.0,
+      "risk_score": 0.6,
+      "confidence": 0.9,
+      "top_sku_actions": [
+        {
+          "sku": "EB-BAT-03",
+          "action": "requalify with Mexican supplier",
+          "new_supplier": "Sunwoda Mexico",
+          "cost_delta_usd": -1209600.0
+        },
+        {
+          "sku": "EB-MTR-01",
+          "action": "requalify with Canadian supplier",
+          "new_supplier": "Nidec Canada",
+          "cost_delta_usd": -601200.0
+        },
+        {
+          "sku": "EB-MAG-04",
+          "action": "requalify with Mexican supplier",
+          "new_supplier": "JL MAG Mexico",
+          "cost_delta_usd": -553700.0
+        }
+      ],
+      "pros": [
+        "Mitigate tariff risk by 84%",
+        "Diversify supply chain and reduce dependence on Chinese suppliers",
+        "Leverage nearshore production capabilities in Mexico and Canada"
+      ],
+      "cons": [
+        "Higher labor costs in Mexico and Canada compared to China",
+        "Increased logistics costs due to cross-border shipping",
+        "Qualification and testing requirements for new suppliers"
+      ],
+      "summary": "The nearshore strategy offers a viable solution to mitigate the 84% tariff on Chinese integrated circuits and advanced semiconductors, with a potential annual cost savings of $2,164,500. The plan involves requalifying with Mexican and Canadian suppliers, leveraging existing maquiladora networks in Mexico and supplier networks in Canada.",
+      "rank": 2,
+      "recommendation_rationale": "The nearshore strategy is a close second, offering a high annual cost savings and a low risk score. However, the longer lead time and higher labor costs in Mexico and Canada are drawbacks compared to the dual-source strategy."
+    },
+    {
+      "strategy": "reshore",
+      "annual_cost_delta_usd": 0.0,
+      "lead_time_months": 0,
+      "supplier_coverage_pct": 0.0,
+      "risk_score": 0.0,
+      "confidence": 0.0,
+      "top_sku_actions": [],
+      "pros": [],
+      "cons": [
+        "No domestic alternatives available for affected SKUs"
+      ],
+      "summary": "Reshoring is not feasible due to lack of domestic alternatives for critical SKUs. The affected SKUs do not have domestic alternatives, making it impossible to reshore production without significant investment in new supplier development.",
+      "rank": 3,
+      "recommendation_rationale": "The reshore strategy is not feasible due to the lack of domestic alternatives for critical SKUs, making it the least desirable option. The zero supplier coverage percentage and lack of cost savings or risk reduction make it an unviable solution."
+    }
+  ],
+  "package": {
+    "status": "EXECUTED",
+    "chosen_scenario": {
+      "strategy": "dual_source",
+      "annual_cost_delta_usd": -2178000.0,
+      "lead_time_months": 9,
+      "supplier_coverage_pct": 85.0,
+      "risk_score": 0.6,
+      "confidence": 0.85,
+      "split_ratio": {
+        "exempt_pct": 65,
+        "china_pct": 35
+      },
+      "top_sku_actions": [
+        {
+          "sku": "EB-BAT-03",
+          "action": "shift to 65% exempt sourcing",
+          "new_supplier": "LG Chem",
+          "cost_delta_usd": -950000.0
+        },
+        {
+          "sku": "EB-MTR-01",
+          "action": "shift to 65% exempt sourcing",
+          "new_supplier": "Nidec Motor",
+          "cost_delta_usd": -770000.0
+        },
+        {
+          "sku": "EB-MAG-04",
+          "action": "remain China-dominant with 35% exempt sourcing",
+          "new_supplier": "Hitachi Metals",
+          "cost_delta_usd": -408000.0
+        }
+      ],
+      "pros": [
+        "reduced tariff exposure",
+        "improved supply chain resilience",
+        "better pricing through dual sourcing"
+      ],
+      "cons": [
+        "increased overhead costs",
+        "potential lead time delays",
+        "supplier management complexities"
+      ],
+      "summary": "Implementing a dual-source strategy with a 65/35 split ratio can reduce annual tariff impact by $2.18 million, while maintaining a competitive supply chain. Top SKUs will be shifted to 65% exempt sourcing, with EB-MAG-04 remaining China-dominant. This approach balances cost and risk, ensuring a more resilient supply chain.",
+      "rank": 1,
+      "recommendation_rationale": "The dual-source strategy offers the best balance of cost and risk, with the highest annual cost savings and a relatively low risk score. The 65/35 split ratio provides a competitive supply chain while reducing tariff exposure."
+    },
+    "emails": [
+      {
+        "to_supplier": "LG Chem",
+        "subject": "Strategic Supply Partnership \u2014 Re-routing Request [EB-BAT-03]",
+        "body": "Dear LG Chem Team, we are writing to notify you of our strategic decision to shift 65% of the sourcing for SKU EB-BAT-03 to your company, as part of our dual-source strategy. This decision is driven by the recent tariff event USTR-2026-04-SEMI-001, which imposes an 84% tariff on Chinese integrated circuits and advanced semiconductors. We expect this change to reduce our annual tariff impact by $950,000. We kindly request that you qualify for this new volume within the next 6 weeks. Please respond to this email within 5 business days to confirm your ability to meet this timeline. We look forward to continuing our partnership and working together to ensure a seamless transition.",
+        "sku_references": [
+          "EB-BAT-03"
+        ],
+        "priority": "HIGH"
+      },
+      {
+        "to_supplier": "Nidec Motor",
+        "subject": "Strategic Supply Partnership \u2014 Re-routing Request [EB-MTR-01]",
+        "body": "Dear Nidec Motor Team, we are writing to notify you of our strategic decision to shift 65% of the sourcing for SKU EB-MTR-01 to your company, as part of our dual-source strategy. This decision is driven by the recent tariff event USTR-2026-04-SEMI-001, which imposes an 84% tariff on Chinese integrated circuits and advanced semiconductors. We expect this change to reduce our annual tariff impact by $770,000. We kindly request that you qualify for this new volume within the next 6 weeks. Please respond to this email within 5 business days to confirm your ability to meet this timeline. We look forward to continuing our partnership and working together to ensure a seamless transition.",
+        "sku_references": [
+          "EB-MTR-01"
+        ],
+        "priority": "HIGH"
+      },
+      {
+        "to_supplier": "Hitachi Metals",
+        "subject": "Strategic Supply Partnership \u2014 Re-routing Request [EB-MAG-04]",
+        "body": "Dear Hitachi Metals Team, we are writing to notify you of our strategic decision to maintain a China-dominant sourcing strategy for SKU EB-MAG-04, with 35% exempt sourcing, as part of our dual-source strategy. This decision is driven by the recent tariff event USTR-2026-04-SEMI-001, which imposes an 84% tariff on Chinese integrated circuits and advanced semiconductors. We expect this change to reduce our annual tariff impact by $408,000. We kindly request that you qualify for this new volume within the next 6 weeks. Please respond to this email within 5 business days to confirm your ability to meet this timeline. We look forward to continuing our partnership and working together to ensure a seamless transition.",
+        "sku_references": [
+          "EB-MAG-04"
+        ],
+        "priority": "HIGH"
+      }
+    ],
+    "authorized_at": "2026-04-19T01:40:17.971451",
+    "email_dir": "output/emails"
+  },
+  "audit_trail": [
+    {
+      "stage": "SignalMonitor",
+      "started_at": "2026-04-19T01:38:18.076212",
+      "completed_at": "2026-04-19T01:38:51.903582",
+      "attempt": 1,
+      "status": "SUCCESS"
+    },
+    {
+      "stage": "BOMMapper",
+      "started_at": "2026-04-19T01:38:51.917503",
+      "completed_at": "2026-04-19T01:39:21.145149",
+      "attempt": 1,
+      "status": "SUCCESS"
+    },
+    {
+      "stage": "ScenarioModeler[3\u00d7 parallel]",
+      "started_at": "2026-04-19T01:39:21.145195",
+      "completed_at": "2026-04-19T01:39:47.864384",
+      "attempt": 1,
+      "status": "SUCCESS"
+    },
+    {
+      "stage": "HITLGate",
+      "started_at": "2026-04-19T01:40:15.632002",
+      "completed_at": "2026-04-19T01:40:17.971461",
+      "attempt": 1,
+      "status": "SUCCESS"
+    }
+  ],
+  "completed_at": "2026-04-19T01:40:17.971477"
+}

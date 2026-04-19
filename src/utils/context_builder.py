@@ -7,12 +7,12 @@ from db.supabase_store import store
 def compile_business_context(user_id: str) -> str:
     """Query business_profiles for user_id and return a formatted context block.
 
-    Returns an empty string if no profile exists, so agents remain functional
+    Returns a minimal block if no profile exists, so agents remain functional
     without a profile (e.g. during system-wide Signal Monitor polls).
     """
     result = _fetch_profile(user_id)
     if not result:
-        return ""
+        return "<business_context>\nNo business profile found.\n</business_context>"
 
     parts = ["<business_context>"]
     if result.get("company_name"):
@@ -36,6 +36,7 @@ def compile_business_context(user_id: str) -> str:
         parts.append(f"Uploaded document excerpts:\n{result['pdf_text'][:2000]}")
     parts.append("</business_context>")
     return "\n".join(parts)
+
 
 
 def _fetch_profile(user_id: str) -> dict | None:

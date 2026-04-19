@@ -49,10 +49,8 @@ class HITLGateAgent:
     def __init__(self, demo_mode: bool = False):
         self.demo_mode = demo_mode
         self.client = AsyncGroq()
-        self.output_dir = Path("output")
+        self.output_dir = Path(__file__).parent.parent / "output"
         self.email_dir = self.output_dir / "emails"
-        self.output_dir.mkdir(exist_ok=True)
-        self.email_dir.mkdir(exist_ok=True)
 
     async def run(
         self,
@@ -225,6 +223,8 @@ class HITLGateAgent:
         return confirm in ("yes", "y")
 
     def _write_emails(self, emails: list[dict], strategy: str):
+        self.output_dir.mkdir(exist_ok=True)
+        self.email_dir.mkdir(exist_ok=True)
         ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
         for i, email in enumerate(emails, 1):
             supplier = email.get("to_supplier", "unknown").replace(" ", "_").replace("/", "_")

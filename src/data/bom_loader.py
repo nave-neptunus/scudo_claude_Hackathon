@@ -131,11 +131,7 @@ def load_bom(path: str | None = None) -> list[dict]:
 
 def extract_pdf_text(pdf_file: bytes | io.IOBase) -> str:
     """Extract all text from a PDF file using pdfplumber. Returns concatenated page text."""
-    try:
-        import pdfplumber
-    except ImportError:
-        os.system("pip install pdfplumber -q")
-        import pdfplumber
+    import pdfplumber
 
     if isinstance(pdf_file, (bytes, bytearray)):
         pdf_file = io.BytesIO(pdf_file)

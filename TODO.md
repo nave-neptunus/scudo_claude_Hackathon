@@ -1,5 +1,65 @@
 # TariffShield — TODO
 
+## PHASE: Reviewer Fixes — R1 (must fix before demo)
+
+### Issue 1 — context_builder.py:14 — get_profile missing from both store classes
+
+- [ ] Add `get_profile(user_id: str) -> dict | None` to `LocalStore` in `src/store.py` (return `None`); add the same method to `SupabaseStore` in `src/db/supabase_store.py` querying `business_profiles` where `user_id` matches — Owner: Builder — Priority: high
+- [ ] In `src/utils/context_builder.py`: replace the `hasattr(store, "_supabase_profile")` branch with a direct call to `store.get_profile(user_id)`; handle `None` gracefully (return a minimal context block with "No business profile found") — Owner: Builder — Priority: high
+
+### Issue 2 — bom_loader.py:137 — os.system pip install forbidden
+
+- [ ] Add `pdfplumber` to `requirements.txt` as a hard dependency; in `src/data/bom_loader.py` remove the `except ImportError: os.system(...)` block entirely and let a missing `pdfplumber` raise `ImportError` at startup — Owner: Builder — Priority: high
+
+### Issue 3 — api.py:285 — non-deterministic hash()
+
+- [ ] In `src/api.py` replace `str(hash(body.title + body.description))` with `hashlib.sha256((body.title + body.description).encode()).hexdigest()`; add `import hashlib` at the top of the file — Owner: Builder — Priority: high
+
+### Issue 4 — api.py:435 — unauthenticated internal poll endpoint (SPEC §5, Constraint 6)
+
+- [ ] In `src/api.py` on the `POST /api/v1/internal/poll-signals` handler: read `INTERNAL_TOKEN` from env at startup; reject requests where `Authorization` header != `Bearer $INTERNAL_TOKEN` with a 401 before any polling work executes — Owner: Builder — Priority: high
+- [ ] Add `INTERNAL_TOKEN` to `.env` with a randomly generated value; document in SPEC.md §7 (already done) — Owner: Builder — Priority: high
+
+### Issue 5 — pipeline.py — incomplete audit log entries (SPEC Constraint 7)
+
+- [ ] In `src/pipeline.py`: record `start = time.monotonic()` before each agent `.run()` call; compute `latency_ms = int((time.monotonic() - start) * 1000)` after; replace the two split partial log calls per agent with a single complete `store.log_agent_run()` call containing `agent_name`, `model`, `input_payload`, `output_payload`, and `latency_ms` — fix for Signal Monitor (lines ~203–213), BOM Mapper (~223–227), and HITL Gate (~259–263) — Owner: Builder — Priority: high
+
+### Issue 6 — pipeline.py:13 — _AGENTS_PATH resolves to non-existent directory
+
+- [ ] In `src/pipeline.py` change `_AGENTS_PATH = str(Path(__file__).parent.parent / "scudo_claude_Hackathon" / "tariffpilot")` to `_AGENTS_PATH = str(Path(__file__).parent)`; apply the same fix to the duplicate broken path in `src/api.py:440` and `src/api.py:487` — Owner: Builder — Priority: high
+
+### Issue 7 — pipeline.py — no Pydantic validation on inter-agent handoffs (SPEC Constraint 2)
+
+- [ ] Declare `EnrichedEvent` Pydantic model in `src/agents/signal_monitor.py` matching the schema in SPEC.md §3.1; at the end of `SignalMonitorAgent.run()` wrap the return value: `return EnrichedEvent(**result).model_dump()` — Owner: Builder — Priority: high
+- [ ] Declare `BOMAnalysis` Pydantic model in `src/agents/bom_mapper.py` matching the schema in SPEC.md §3.2; at the end of `BOMMapperAgent.run()` wrap the return value: `return BOMAnalysis(**result).model_dump()` — Owner: Builder — Priority: high
+- [ ] In `src/pipeline.py`: after each agent `.run()` call, re-validate the result against the corresponding Pydantic model before passing to the next stage; on `ValidationError` log the error to `agent_runs` and raise so the pipeline halts cleanly — Owner: Builder — Priority: high
+
+---
+
+## PHASE: Reviewer Suggestions — R1 (should fix)
+
+### S1 — api.py:249,353 — list calls missing user_id
+
+- [ ] In `src/api.py` pass the authenticated user's ID to `store.list_boms(user_id=current_user_id)` and `store.list_recommendations(user_id=current_user_id)`; update `SupabaseStore` to filter by `user_id` in both methods — Owner: Builder — Priority: med
+
+### S2 — api.py:287 — duplicate event_id generates two UUIDs
+
+- [ ] In `src/api.py` compute `event_id = body.event_id or str(uuid.uuid4())` once before the dict literal and reference that variable for both `"id"` and `"event_id"` keys — Owner: Builder — Priority: med
+
+### S3 — pipeline.py:92 — bom_analysis.get('summary', {}) always returns {}
+
+- [ ] In `src/pipeline.py` replace `bom_analysis.get('summary', {})` with the real exposure fields from `BOMAnalysis` (`affected_skus`, `total_annual_tariff_impact_usd`); update the email draft prompt to reference those fields by name — Owner: Builder — Priority: med
+
+### S4 — pipeline.py:99 — hasattr(HITLGateAgent, "EMAIL_SYSTEM") dead code
+
+- [ ] In `src/pipeline.py` remove the `hasattr(HITLGateAgent, "EMAIL_SYSTEM")` branch; import `EMAIL_SYSTEM` directly from `src/agents/hitl_gate.py` and use it — Owner: Builder — Priority: med
+
+### S5 — hitl_gate.py:52-55 — side-effectful mkdir in __init__
+
+- [ ] In `src/agents/hitl_gate.py` move `self.output_dir.mkdir()` and `self.email_dir.mkdir()` from `__init__` into `_write_emails()` where the directories are actually used; change both to absolute paths using `Path(__file__).parent.parent / "output"` — Owner: Builder — Priority: med
+
+---
+
 ## PHASE: Tavily Migration (replace Brave Search)
 
 ### Signal Monitor → src/tools/ + src/agents/
