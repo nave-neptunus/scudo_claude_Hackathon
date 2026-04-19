@@ -1,13 +1,17 @@
 from __future__ import annotations
-"""Supabase client singleton — uses service-role key for backend ops."""
+"""Supabase client singleton — uses service-role key for backend ops.
+
+Falls back gracefully when credentials are not set (local dev mode).
+"""
 
 import os
-from supabase import create_client, Client
+from typing import Any
 
 _url = os.getenv("SUPABASE_URL", "")
 _key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
-if not _url or not _key:
-    raise RuntimeError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
+db: Any = None
 
-db: Client = create_client(_url, _key)
+if _url and _key:
+    from supabase import create_client, Client
+    db = create_client(_url, _key)
