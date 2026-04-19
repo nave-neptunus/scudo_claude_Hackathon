@@ -39,12 +39,5 @@ def compile_business_context(user_id: str) -> str:
 
 
 def _fetch_profile(user_id: str) -> dict | None:
-    """Fetch business profile from Supabase. Returns None if db is not configured."""
-    from db.supabase_client import db
-    if db is None:
-        return None
-    try:
-        result = db.table("business_profiles").select("*").eq("id", user_id).execute()
-        return result.data[0] if result.data else None
-    except Exception:
-        return None
+    """Fetch business profile from store (Local or Supabase)."""
+    return store.get_business_profile(user_id)

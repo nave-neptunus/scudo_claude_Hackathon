@@ -34,7 +34,7 @@ def _load() -> dict:
             return json.loads(_STORE_FILE.read_text())
         except Exception:
             pass
-    return {"boms": {}, "bom_rows": {}, "events": {}, "recommendations": {}, "scenarios": {}, "agent_runs": []}
+    return {"boms": {}, "bom_rows": {}, "events": {}, "recommendations": {}, "scenarios": {}, "agent_runs": [], "business_profiles": {}}
 
 
 def _save(state: dict):
@@ -165,6 +165,16 @@ class LocalStore:
     def get_progress_since(self, rec_id: str, offset: int) -> list[dict]:
         return self._progress.get(rec_id, [])[offset:]
 
+    # Business Profiles
+    def upsert_business_profile(self, profile: dict) -> dict:
+        user_id = profile.get("id")
+        self._state["business_profiles"][user_id] = profile
+        _save(self._state)
+        return profile
+
+    def get_business_profile(self, user_id: str) -> dict | None:
+        return self._state["business_profiles"].get(user_id)
+
 
 # ──────────────────────────────────────────────────────────────────────────
 # SUPABASE STORE (original)
@@ -278,6 +288,14 @@ class SupabaseStore:
         if user_id:
             q = q.eq("user_id", user_id)
         return q.execute().data or []
+
+    def upsert_business_profile(self, profile: dict) -> dict:
+        result = db.table("business_profiles").upsert(profile, on_conflict="id").execute()
+        return result.data[0] if result.data else profile
+
+    def get_business_profile(self, user_id: str) -> dict | None:
+        result = db.table("business_profiles").select("*").eq("id", user_id).execute()
+        return result.data[0] if result.data else None
 
     def init_progress(self, rec_id: str):
         self._progress[rec_id] = []

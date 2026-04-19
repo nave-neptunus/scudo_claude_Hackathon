@@ -152,9 +152,8 @@ async def onboarding(
         "pdf_text": pdf_text,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
-    if _db is None:
-        raise HTTPException(503, "Supabase not configured — onboarding requires a database connection")
-    _db.table("business_profiles").upsert(profile_row, on_conflict="id").execute()
+    # Upsert business_profiles via store abstraction (handles local/supabase)
+    store.upsert_business_profile(profile_row)
 
     # Parse + store BOM CSV if provided
     bom_id = None
@@ -441,8 +440,8 @@ async def poll_signals():
 
     agent = SignalMonitorAgent()
     try:
-        events = await agent.poll_federal_register()
-    except AttributeError:
+        events, _ = await agent.poll_federal_register()
+    except Exception as e:
         # Fallback if method not available
         return {"status": "ok", "events_found": 0, "message": "poll_federal_register not available"}
 

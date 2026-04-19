@@ -1,0 +1,3 @@
+sku_code,description,supplier_name,supplier_country,tier,annual_quantity,unit_cost_usd,hs_code
+SKU-001,Integrated Circuit,ChipMaker Co,China,1,1000,5.50,8542.31
+SKU-002,Resistor,PartSource,Vietnam,1,50000,0.02,8533.10
